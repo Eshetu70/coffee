@@ -83,6 +83,16 @@
     .panel{ max-width:1100px; margin:2rem auto 3rem; padding:0 2rem; }
     .card{ background:#fff; border-radius:18px; box-shadow:0 10px 35px rgba(0,0,0,0.08); padding:1.25rem; }
 
+    .admin-panel{ max-width:900px; margin:2rem auto 3rem; padding:2rem; background:#fff; border-radius:20px; box-shadow:0 10px 40px rgba(0,0,0,0.1); }
+    .image-upload-area{ border:3px dashed #ddd; border-radius:12px; padding:2rem; text-align:center; cursor:pointer; }
+    .image-preview{ max-width:100%; max-height:280px; margin-top:1rem; border-radius:10px; }
+    .product-list{ margin-top:1.5rem; }
+    .product-item{ background:#fff; padding:1rem; border-radius:14px; margin-bottom:1rem; box-shadow:0 3px 10px rgba(0,0,0,0.08); display:flex; gap:1rem; align-items:center; }
+    .product-item-image{ width:92px; height:92px; border-radius:10px; overflow:hidden; background:#f1f1f1; }
+    .product-item-image img{ width:100%; height:100%; object-fit:cover; }
+    .product-item-details{ flex:1; }
+    .product-actions{ display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:flex-end; }
+
     .modal-backdrop{
       position:fixed; inset:0; background: rgba(0,0,0,0.55);
       display:flex; align-items:center; justify-content:center;
@@ -143,6 +153,8 @@
       <ul class="nav-menu">
         <li><a onclick="showShop()">Shop</a></li>
         <li><a onclick="openOrders()">My Orders</a></li>
+        <li><a onclick="openAdmin()">Admin</a></li>
+
         <li>
           <div class="pill" onclick="openAccountMenu()">
             👤 <span id="authLabel">Login</span>
@@ -188,6 +200,121 @@
     </div>
   </div>
 
+  <!-- ADMIN -->
+  <div id="adminSection" class="panel hidden">
+    <div class="admin-panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+        <h2>🛠 Admin</h2>
+        <button class="btn-ghost" onclick="showShop()">Back to Shop</button>
+      </div>
+
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin:0.75rem 0 1rem;">
+        <button class="btn-primary" onclick="adminSetKey()">Set Admin Key</button>
+        <button class="btn-ghost" onclick="adminTestKey()">Test Key</button>
+        <button class="btn-danger" onclick="adminLogout()">Logout</button>
+      </div>
+
+      <p style="color:#636e72;margin-bottom:1.25rem;">
+        Admin key is stored only in your browser (localStorage). Coffee write routes require <b>x-admin-key</b>.
+      </p>
+
+      <h3 style="margin-bottom:1rem;">Add New Coffee Item</h3>
+
+      <form id="productForm">
+        <div class="image-upload-area" onclick="document.getElementById('imageInput').click()">
+          <p>📷 Upload Image (optional, max 2MB)</p>
+          <input type="file" id="imageInput" accept="image/*" style="display:none;">
+          <img id="imagePreview" class="image-preview hidden" alt="Preview">
+        </div>
+
+        <div style="margin-top:1rem;">
+          <label><b>Item Name</b></label>
+          <input id="productName" required placeholder="e.g., Yirgacheffe Beans 1kg">
+        </div>
+
+        <div style="margin-top:1rem;">
+          <label><b>Description</b></label>
+          <textarea id="productDescription" rows="3" placeholder="Taste notes, roast level, size..."></textarea>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
+          <div>
+            <label><b>Category</b></label>
+            <select id="productCategory" required>
+              <option value="beans">Beans</option>
+              <option value="ground">Ground</option>
+              <option value="espresso">Espresso</option>
+              <option value="traditional">Traditional</option>
+              <option value="accessories">Accessories</option>
+            </select>
+          </div>
+          <div>
+            <label><b>Price (ETB)</b></label>
+            <input type="number" id="productPrice" step="0.01" required placeholder="e.g., 1200">
+          </div>
+        </div>
+
+        <button class="btn-primary" id="addBtn" type="submit" style="width:100%;margin-top:1.2rem;">Add Item</button>
+        <p id="adminStatus" style="margin-top:0.75rem;color:#636e72;font-weight:900;"></p>
+      </form>
+
+      <h3 style="margin-top:2rem;margin-bottom:1rem;">Manage Coffee</h3>
+      <div class="product-list" id="productList"></div>
+    </div>
+  </div>
+
+  <!-- EDIT MODAL -->
+  <div id="editModal" class="modal-backdrop hidden" onclick="if(event.target.id==='editModal') closeEditModal()">
+    <div class="modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+        <h2>Edit Item</h2>
+        <button class="btn-ghost" onclick="closeEditModal()">✕</button>
+      </div>
+
+      <p class="muted">Update item details and optionally replace image.</p>
+
+      <input id="editId" type="hidden" />
+
+      <label>Name</label>
+      <input id="editName" />
+
+      <label style="margin-top:0.75rem;">Description</label>
+      <textarea id="editDescription" rows="3"></textarea>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.75rem;">
+        <div>
+          <label>Category</label>
+          <select id="editCategory">
+            <option value="beans">Beans</option>
+            <option value="ground">Ground</option>
+            <option value="espresso">Espresso</option>
+            <option value="traditional">Traditional</option>
+            <option value="accessories">Accessories</option>
+          </select>
+        </div>
+        <div>
+          <label>Price (ETB)</label>
+          <input id="editPrice" type="number" step="0.01" />
+        </div>
+      </div>
+
+      <div style="margin-top:0.75rem;">
+        <label>Replace Image (optional, max 2MB)</label>
+        <input id="editImage" type="file" accept="image/*" />
+        <img id="editPreview" class="image-preview hidden" alt="Preview" />
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="actions">
+        <button class="btn-primary" onclick="saveEditProduct()">Save</button>
+        <button class="btn-danger" onclick="closeEditModal()">Cancel</button>
+      </div>
+
+      <p id="editMsg" style="margin-top:0.75rem;color:#e74c3c;font-weight:1000;"></p>
+    </div>
+  </div>
+
   <!-- CART DRAWER -->
   <div id="cartDrawer" class="drawer-backdrop hidden" onclick="if(event.target.id==='cartDrawer'){closeCart()}">
     <div class="drawer">
@@ -211,7 +338,7 @@
   </div>
 
   <!-- CHECKOUT MODAL -->
-  <div id="checkoutModal" class="modal-backdrop hidden">
+  <div id="checkoutModal" class="modal-backdrop hidden" onclick="if(event.target.id==='checkoutModal') closeCheckout()">
     <div class="modal" style="width:min(720px,100%);">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <h2>✅ Checkout</h2>
@@ -358,7 +485,7 @@
   </footer>
 
 <script>
-  // ✅ Set your deployed backend here:
+  // ✅ Your deployed backend:
   const BACKEND_URL = "https://coffee-1-5gfb.onrender.com";
 
   const API_BASE =
@@ -372,6 +499,13 @@
   let currentFilter = "all";
   let cart = JSON.parse(localStorage.getItem("YORDI_CART") || "[]");
 
+  // ---- Admin key ----
+  const ADMIN_KEY_STORAGE = "YORDI_ADMIN_KEY";
+  const getAdminKey = () => localStorage.getItem(ADMIN_KEY_STORAGE) || "";
+  const setAdminKey = (k) => localStorage.setItem(ADMIN_KEY_STORAGE, k);
+  const clearAdminKey = () => localStorage.removeItem(ADMIN_KEY_STORAGE);
+
+  // ---- Auth token ----
   const AUTH_TOKEN_KEY = "YORDI_AUTH_TOKEN";
   const getToken = () => localStorage.getItem(AUTH_TOKEN_KEY) || "";
   const setToken = (t) => localStorage.setItem(AUTH_TOKEN_KEY, t);
@@ -409,15 +543,21 @@
 
   function showShop(){
     document.getElementById("ordersSection").classList.add("hidden");
+    document.getElementById("adminSection").classList.add("hidden");
     document.getElementById("shopSection").scrollIntoView({ behavior:"smooth" });
   }
 
-  function continueShopping(){
-    closeCart();
-    showShop();
+  function continueShopping(){ closeCart(); showShop(); }
+
+  function openAdmin(){
+    document.getElementById("ordersSection").classList.add("hidden");
+    document.getElementById("adminSection").classList.remove("hidden");
+    window.scrollTo({ top: document.getElementById("adminSection").offsetTop, behavior:"smooth" });
+    renderAdminList();
   }
 
   async function openOrders(){
+    document.getElementById("adminSection").classList.add("hidden");
     document.getElementById("ordersSection").classList.remove("hidden");
     window.scrollTo({ top: document.getElementById("ordersSection").offsetTop, behavior:"smooth" });
 
@@ -429,24 +569,21 @@
     await loadMyOrders();
   }
 
+  // ------------------ PRODUCTS ------------------
   async function loadProducts(){
     const loading = document.getElementById("loadingProducts");
     const url = API_BASE + "/api/coffee";
-
     loading.classList.remove("hidden");
     loading.innerHTML = "Loading coffee...";
 
     try {
       const res = await fetch(url, { cache: "no-store" });
       const { text, json } = await readJsonSafe(res);
-
-      if(!res.ok){
-        throw new Error(`Backend ${res.status}: ${json?.details || json?.error || text || "Unknown error"}`);
-      }
-
+      if(!res.ok) throw new Error(`Backend ${res.status}: ${json?.details || json?.error || text || "Unknown error"}`);
       products = Array.isArray(json) ? json : [];
       loading.classList.add("hidden");
       renderProducts();
+      renderAdminList();
     } catch (err) {
       console.error(err);
       loading.innerHTML = `
@@ -487,7 +624,7 @@
           <img src="${p.image || ''}" alt="${escapeHtml(p.name || 'Coffee')}" onerror="this.style.display='none'">
         </div>
         <div class="product-details">
-          <div class="product-category">${escapeHtml(p.category || '')} ${p.size ? "• " + escapeHtml(p.size) : ""}</div>
+          <div class="product-category">${escapeHtml(p.category || '')}</div>
           <div class="product-name">${escapeHtml(p.name || '')}</div>
           ${p.description ? `<p style="font-size:0.95rem;color:#636e72;margin:0.4rem 0;">${escapeHtml(p.description)}</p>` : ""}
           <div class="product-price">${formatMoney(p.price)} ETB</div>
@@ -502,21 +639,14 @@
     if(!p) return alert("Item not found");
 
     const existing = cart.find(x => String(x.productId) === String(mongoId));
-    if(existing){
-      existing.qty = (Number(existing.qty)||1) + 1;
-    }else{
-      cart.push({
-        productId: String(p._id),
-        name: p.name,
-        price: Number(p.price)||0,
-        qty: 1,
-        image: p.image || ""
-      });
-    }
+    if(existing) existing.qty = (Number(existing.qty)||1) + 1;
+    else cart.push({ productId: String(p._id), name: p.name, price: Number(p.price)||0, qty: 1, image: p.image || "" });
+
     saveCart();
     openCart();
   }
 
+  // ------------------ CART ------------------
   function removeFromCart(productId){
     cart = cart.filter(x => String(x.productId) !== String(productId));
     saveCart();
@@ -574,6 +704,7 @@
     document.getElementById("cartSubtotal").textContent = `${formatMoney(cartSubtotal())} ETB`;
   }
 
+  // ------------------ CHECKOUT ------------------
   function openCheckout(){
     if(cart.length === 0) return alert("Cart is empty");
     if(!getToken()){
@@ -585,7 +716,6 @@
     document.getElementById("ckTotal").value = formatMoney(cartSubtotal()) + " ETB";
     document.getElementById("checkoutModal").classList.remove("hidden");
   }
-
   function closeCheckout(){ document.getElementById("checkoutModal").classList.add("hidden"); }
 
   async function placeOrder(){
@@ -607,9 +737,7 @@
     if(!address) return msgEl.textContent = "Address is required";
 
     const payload = {
-      items: cart.map(it => ({
-        productId: it.productId, name: it.name, price: it.price, qty: it.qty, image: it.image || ""
-      })),
+      items: cart.map(it => ({ productId: it.productId, name: it.name, price: it.price, qty: it.qty, image: it.image || "" })),
       fullName, phone, email, address, city, country, notes,
       paymentMethod, telebirrRef
     };
@@ -624,9 +752,7 @@
         body: JSON.stringify(payload)
       });
       const { text, json } = await readJsonSafe(res);
-      if(!res.ok){
-        throw new Error(json?.error || json?.details || text || "Order failed");
-      }
+      if(!res.ok) throw new Error(json?.error || json?.details || text || "Order failed");
 
       alert("✅ Order placed! Order ID: " + (json?.order?.orderId || ""));
       closeCheckout();
@@ -639,11 +765,8 @@
     }
   }
 
-  // AUTH UI
-  function openAuth(){
-    document.getElementById("authModal").classList.remove("hidden");
-    switchToLogin();
-  }
+  // ------------------ AUTH ------------------
+  function openAuth(){ document.getElementById("authModal").classList.remove("hidden"); switchToLogin(); }
   function closeAuth(){ document.getElementById("authModal").classList.add("hidden"); }
 
   function switchToRegister(){
@@ -669,10 +792,7 @@
   }
 
   function openAccountMenu(){
-    if(!getToken()){
-      openAuth();
-      return;
-    }
+    if(!getToken()){ openAuth(); return; }
     const choice = prompt("Type: 1 = My Orders, 2 = Logout");
     if(choice === "1") openOrders();
     if(choice === "2"){ clearToken(); setAuthLabel(); alert("Logged out."); }
@@ -773,8 +893,245 @@
     }
   }
 
+  // ------------------ ADMIN UI ------------------
+  function adminSetKey(){
+    const k = prompt("Enter ADMIN_KEY:");
+    if(!k) return;
+    setAdminKey(k.trim());
+    alert("✅ Admin key saved in this browser.");
+  }
+  function adminLogout(){
+    clearAdminKey();
+    alert("✅ Admin key cleared.");
+  }
+
+  async function adminTestKey(){
+    const key = getAdminKey();
+    if(!key) return alert("Admin key not set. Click 'Set Admin Key'.");
+
+    try{
+      // We'll try a POST with missing fields just to see if auth passes:
+      const res = await fetch(API_BASE + "/api/coffee", {
+        method: "POST",
+        headers: { "Content-Type":"application/json", "x-admin-key": key },
+        body: JSON.stringify({}) // backend will return 400 if auth ok
+      });
+      const { text } = await readJsonSafe(res);
+
+      if(res.status === 401) return alert("❌ Wrong admin key (401 Unauthorized).");
+      if(res.status === 400) return alert("✅ Admin key works (auth passed).");
+      alert("Response: " + res.status + "\n" + text);
+    }catch(e){
+      alert("Test error: " + e.message);
+    }
+  }
+
+  function renderAdminList(){
+    const list = document.getElementById("productList");
+    if(!list) return;
+    if(!products.length){
+      list.innerHTML = '<p style="color:#636e72;padding:1rem;">No items yet.</p>';
+      return;
+    }
+
+    list.innerHTML = products.map(p => `
+      <div class="product-item">
+        <div class="product-item-image">
+          <img src="${p.image || ''}" alt="${escapeHtml(p.name || '')}" onerror="this.style.display='none'">
+        </div>
+        <div class="product-item-details">
+          <h3>${escapeHtml(p.name || '')}</h3>
+          <p><b>Category:</b> ${escapeHtml(p.category || '')}</p>
+          <p><b>Price:</b> ${formatMoney(p.price)} ETB</p>
+        </div>
+        <div class="product-actions">
+          <button class="btn-ghost" onclick="openEditProduct('${String(p._id)}')">Edit</button>
+          <button class="btn-danger" onclick="deleteProduct('${String(p._id)}')">Delete</button>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  async function fileToBase64(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function setAdminStatus(msg, isError=false){
+    const el = document.getElementById("adminStatus");
+    if(!el) return;
+    el.textContent = msg || "";
+    el.style.color = isError ? "#e74c3c" : "#636e72";
+  }
+
+  async function addProduct(formEl){
+    const key = getAdminKey();
+    if(!key) return alert("Admin key not set. Click 'Set Admin Key'.");
+
+    const file = document.getElementById("imageInput").files[0];
+    if (file && file.size > 2 * 1024 * 1024) return alert("Image too large (max 2MB).");
+
+    const payload = {
+      name: document.getElementById("productName").value.trim(),
+      description: document.getElementById("productDescription").value.trim(),
+      category: document.getElementById("productCategory").value,
+      price: Number(document.getElementById("productPrice").value),
+      image: ""
+    };
+
+    if(!payload.name) return alert("Name is required");
+    if(!payload.price) return alert("Price is required");
+
+    if(file) payload.image = await fileToBase64(file);
+
+    const btn = document.getElementById("addBtn");
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+    setAdminStatus("Saving coffee...");
+
+    try{
+      const res = await fetch(API_BASE + "/api/coffee", {
+        method: "POST",
+        headers: { "Content-Type":"application/json", "x-admin-key": key },
+        body: JSON.stringify(payload)
+      });
+      const { text, json } = await readJsonSafe(res);
+      if(!res.ok) throw new Error(json?.error || json?.details || text || "Failed to add item");
+      alert("✅ Coffee item added!");
+      setAdminStatus("Saved ✅");
+      formEl.reset();
+      document.getElementById("imagePreview").classList.add("hidden");
+      await loadProducts();
+    }catch(e){
+      setAdminStatus("Error: " + e.message, true);
+      alert("Add error: " + e.message);
+    }finally{
+      btn.disabled = false;
+      btn.textContent = "Add Item";
+    }
+  }
+
+  function openEditProduct(id){
+    const p = products.find(x => String(x._id) === String(id));
+    if(!p) return alert("Item not found");
+
+    document.getElementById("editMsg").textContent = "";
+    document.getElementById("editId").value = p._id;
+    document.getElementById("editName").value = p.name || "";
+    document.getElementById("editPrice").value = Number(p.price) || 0;
+    document.getElementById("editDescription").value = p.description || "";
+    document.getElementById("editCategory").value = p.category || "beans";
+
+    const prev = document.getElementById("editPreview");
+    if(p.image){
+      prev.src = p.image;
+      prev.classList.remove("hidden");
+    } else {
+      prev.classList.add("hidden");
+    }
+
+    document.getElementById("editImage").value = "";
+    document.getElementById("editModal").classList.remove("hidden");
+  }
+
+  function closeEditModal(){ document.getElementById("editModal").classList.add("hidden"); }
+
+  async function saveEditProduct(){
+    const key = getAdminKey();
+    if(!key) return alert("Admin key not set. Click 'Set Admin Key'.");
+
+    const id = document.getElementById("editId").value;
+    const name = document.getElementById("editName").value.trim();
+    const price = Number(document.getElementById("editPrice").value);
+    const description = document.getElementById("editDescription").value.trim();
+    const category = document.getElementById("editCategory").value;
+    const file = document.getElementById("editImage").files[0];
+
+    const msg = document.getElementById("editMsg");
+    msg.textContent = "";
+
+    if(!name) return msg.textContent = "Name is required";
+    if(!price) return msg.textContent = "Price is required";
+    if(file && file.size > 2 * 1024 * 1024) return msg.textContent = "Image too large (max 2MB)";
+
+    const payload = { name, price, description, category };
+    if(file) payload.image = await fileToBase64(file);
+
+    try{
+      const res = await fetch(API_BASE + "/api/coffee/" + encodeURIComponent(id), {
+        method: "PUT",
+        headers: { "Content-Type":"application/json", "x-admin-key": key },
+        body: JSON.stringify(payload)
+      });
+      const { text, json } = await readJsonSafe(res);
+      if(!res.ok) throw new Error(json?.error || json?.details || text || "Update failed");
+
+      alert("✅ Updated!");
+      closeEditModal();
+      await loadProducts();
+    }catch(e){
+      msg.textContent = e.message;
+    }
+  }
+
+  async function deleteProduct(id){
+    const key = getAdminKey();
+    if(!key) return alert("Admin key not set. Click 'Set Admin Key'.");
+    if(!confirm("Delete this item?")) return;
+
+    try{
+      const res = await fetch(API_BASE + "/api/coffee/" + encodeURIComponent(id), {
+        method: "DELETE",
+        headers: { "x-admin-key": key }
+      });
+      const { text, json } = await readJsonSafe(res);
+      if(!res.ok) throw new Error(json?.error || json?.details || text || "Delete failed");
+      alert("✅ Deleted!");
+      await loadProducts();
+    }catch(e){
+      alert("Delete error: " + e.message);
+    }
+  }
+
+  // previews
+  document.addEventListener("change", (e) => {
+    if(e.target && e.target.id === "imageInput"){
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = document.getElementById("imagePreview");
+        img.src = ev.target.result;
+        img.classList.remove("hidden");
+      };
+      reader.readAsDataURL(file);
+    }
+
+    if(e.target && e.target.id === "editImage"){
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = document.getElementById("editPreview");
+        img.src = ev.target.result;
+        img.classList.remove("hidden");
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
   document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("yy").textContent = new Date().getFullYear();
+
+    document.getElementById("productForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      await addProduct(e.target);
+    });
+
     updateCartCount();
     setAuthLabel();
     loadProducts();
