@@ -27,14 +27,13 @@
       cursor:pointer; user-select:none;
     }
     .pill:hover{ border-color: rgba(255,255,255,0.5); }
-    .cart-count{ background:#e74c3c; color:#fff; border-radius:50%; width:20px; height:20px; font-size:0.75rem; display:inline-flex; align-items:center; justify-content:center; margin-left:0.35rem; }
 
     .hero{
       background:
         linear-gradient(135deg, rgba(0,0,0,0.58), rgba(0,0,0,0.25)),
         url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600"><rect fill="%236b3f2a" width="1200" height="600"/></svg>');
       background-size:cover;
-      color:#fff; padding:6rem 2rem 4rem; text-align:center;
+      color:#fff; padding:5.5rem 2rem 3.5rem; text-align:center;
     }
     .hero h1{ font-size:3rem; margin-bottom:0.8rem; font-weight:1000; }
     .hero p{ font-size:1.05rem; opacity:0.95; }
@@ -80,18 +79,6 @@
     .hidden{ display:none !important; }
     .loading{ text-align:center; padding:3rem; font-size:1.1rem; color:#636e72; }
 
-    .panel{ max-width:1100px; margin:2rem auto 3rem; padding:0 2rem; }
-    .card{ background:#fff; border-radius:18px; box-shadow:0 10px 35px rgba(0,0,0,0.08); padding:1.25rem; }
-    .row{ display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-    @media (max-width:900px){ .row{ grid-template-columns:1fr; } }
-
-    label{ font-weight:900; font-size:0.95rem; }
-    input, textarea, select{
-      width:100%; padding:0.85rem; border:2px solid #ddd; border-radius:10px;
-      font-size:1rem; outline:none;
-    }
-    input:focus, textarea:focus, select:focus{ border-color:#8b5a2b; }
-
     .admin-panel{ max-width:900px; margin:3rem auto; padding:2rem; background:#fff; border-radius:20px; box-shadow:0 10px 40px rgba(0,0,0,0.1); }
     .image-upload-area{ border:3px dashed #ddd; border-radius:12px; padding:2rem; text-align:center; cursor:pointer; }
     .image-preview{ max-width:100%; max-height:280px; margin-top:1rem; border-radius:10px; }
@@ -108,7 +95,7 @@
       padding:1rem; z-index:2000;
     }
     .modal{
-      width:min(520px, 100%);
+      width:min(560px, 100%);
       background:#fff; border-radius:18px;
       box-shadow:0 20px 60px rgba(0,0,0,0.25);
       padding:1.25rem;
@@ -116,23 +103,6 @@
     .modal .muted{ color:#636e72; font-size:0.95rem; margin-bottom:1rem; }
     .modal .actions{ display:flex; gap:0.75rem; flex-wrap:wrap; margin-top:1rem; }
     .hr{ height:1px; background:#eee; margin:1rem 0; }
-    .link{ color:#8b5a2b; font-weight:1000; cursor:pointer; }
-
-    .drawer-backdrop{ position:fixed; inset:0; background: rgba(0,0,0,0.45); z-index:2500; display:flex; justify-content:flex-end; }
-    .drawer{ width:min(420px, 100%); height:100%; background:#fff; padding:1rem; overflow:auto; box-shadow:-20px 0 60px rgba(0,0,0,0.2); }
-
-    .cart-item{ display:flex; gap:0.75rem; padding:0.85rem 0; border-bottom:1px solid #eee; align-items:center; position:relative; }
-    .cart-thumb{ width:72px; height:72px; border-radius:12px; overflow:hidden; background:#f1f1f1; flex:0 0 auto; }
-    .cart-thumb img{ width:100%; height:100%; object-fit:cover; }
-    .qty{ display:flex; align-items:center; gap:0.5rem; margin-top:0.35rem; }
-    .qty button{ width:34px; height:34px; border-radius:10px; border:1px solid #ddd; background:#fff; font-weight:1000; cursor:pointer; }
-    .qty span{ font-weight:1000; min-width:24px; text-align:center; display:inline-block; }
-    .remove-x{
-      position:absolute; top:10px; right:8px; width:30px; height:30px;
-      border-radius:10px; border:1px solid rgba(231,76,60,0.35);
-      background: rgba(231,76,60,0.08); color:#e74c3c; font-weight:1000;
-      cursor:pointer; display:flex; align-items:center; justify-content:center; user-select:none;
-    }
 
     .footer{ margin-top:2rem; background:#0b0b0b; color:#fff; padding:2rem 1.5rem; }
     .footer-inner{
@@ -156,27 +126,16 @@
 </head>
 
 <body>
-  <!-- OPTIONAL: Set this when deployed (recommended) -->
-  <!-- <script>window.RENDER_BACKEND_URL="https://your-backend.onrender.com";</script> -->
-
   <header class="header">
     <nav class="nav-container">
       <a class="logo" onclick="showShop()">☕ Yordi Coffee</a>
 
       <ul class="nav-menu">
         <li><a onclick="showShop()">Shop</a></li>
-        <li><a onclick="openOrders()">My Orders</a></li>
         <li><a onclick="openAdmin()">Admin</a></li>
-
         <li>
-          <div class="pill" onclick="openAccountMenu()">
-            👤 <span id="authLabel">Login</span>
-          </div>
-        </li>
-
-        <li>
-          <div class="pill" onclick="openCart()">
-            🛒 Cart <span class="cart-count" id="cartCount">0</span>
+          <div class="pill" onclick="reloadAll()">
+            🔄 <span>Refresh</span>
           </div>
         </li>
       </ul>
@@ -202,38 +161,24 @@
   <div id="loadingProducts" class="loading">Loading coffee...</div>
   <div class="products-grid" id="productsGrid"></div>
 
-  <!-- ORDERS PAGE -->
-  <div id="ordersSection" class="panel hidden">
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
-        <h2>📦 My Orders</h2>
-        <button class="btn-primary" onclick="showShop()">Back to Shop</button>
-      </div>
-      <p style="color:#636e72;margin-top:0.25rem;">Login required to view your order history.</p>
-      <div id="ordersList" style="margin-top:1rem;"></div>
-    </div>
-  </div>
-
   <!-- ADMIN -->
   <div id="adminSection" class="hidden">
     <div class="admin-panel">
-      <h2 style="margin-bottom: 0.5rem;">Admin</h2>
-
-      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.25rem;">
-        <button class="btn-primary" onclick="setAdminKey()">Set Admin Key</button>
-        <button class="btn-danger" onclick="logoutAdmin()">Logout</button>
-        <button class="btn-primary" onclick="testAdminKey()">Test Admin Key</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+        <h2 style="margin-bottom: 0.5rem;">Admin (Simple)</h2>
+        <button class="btn-ghost" onclick="showShop()">Back to Shop</button>
       </div>
 
       <p style="color:#636e72;margin-bottom:1.25rem;">
-        ✅ Coffee and images are stored in MongoDB Atlas (DB: <b>Yordi_Coffee</b>, Collection: <b>coffee</b>).
+        ✅ This admin uses the same backend endpoints:
+        <b>GET /api/coffee</b>, <b>POST /api/coffee</b>, <b>PUT /api/coffee/:id</b>, <b>DELETE /api/coffee/:id</b>
       </p>
 
       <h3 style="margin-bottom:1rem;">Add New Coffee Item</h3>
 
       <form id="productForm">
         <div class="image-upload-area" onclick="document.getElementById('imageInput').click()">
-          <p>📷 Upload Image (max 2MB)</p>
+          <p>📷 Upload Image (optional, max 2MB)</p>
           <input type="file" id="imageInput" accept="image/*" style="display:none;">
           <img id="imagePreview" class="image-preview hidden" alt="Preview">
         </div>
@@ -260,23 +205,13 @@
             </select>
           </div>
           <div>
-            <label><b>Size</b></label>
-            <select id="productSize" required>
-              <option value="250g">250g</option>
-              <option value="500g">500g</option>
-              <option value="1kg">1kg</option>
-              <option value="single">Single</option>
-            </select>
+            <label><b>Price (ETB)</b></label>
+            <input type="number" id="productPrice" step="0.01" required placeholder="e.g., 1200">
           </div>
         </div>
 
-        <div style="margin-top:1rem;">
-          <label><b>Price (ETB)</b></label>
-          <input type="number" id="productPrice" step="0.01" required placeholder="e.g., 1200">
-        </div>
-
         <button class="btn-primary" id="addBtn" type="submit" style="width:100%;margin-top:1.2rem;">Add Item</button>
-        <p id="adminStatus" style="margin-top:0.75rem;color:#636e72;"></p>
+        <p id="adminStatus" style="margin-top:0.75rem;color:#636e72;font-weight:900;"></p>
       </form>
 
       <h3 style="margin-top:2rem;margin-bottom:1rem;">Manage Coffee</h3>
@@ -284,114 +219,55 @@
     </div>
   </div>
 
-  <div id="cartDrawer" class="drawer-backdrop hidden" onclick="if(event.target.id==='cartDrawer'){closeCart()}">
-    <div class="drawer">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <h2>🛒 Cart</h2>
-        <button class="btn btn-dark" style="width:auto;padding:0.5rem 0.75rem;" onclick="closeCart()">✕</button>
+  <!-- EDIT MODAL -->
+  <div id="editModal" class="modal-backdrop hidden" onclick="if(event.target.id==='editModal') closeEditModal()">
+    <div class="modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+        <h2>Edit Item</h2>
+        <button class="btn-ghost" onclick="closeEditModal()">✕</button>
       </div>
 
-      <div id="cartItems"></div>
+      <p class="muted">Update name, category, description, price, and optionally replace image.</p>
 
-      <div class="hr"></div>
-      <div style="display:flex;justify-content:space-between;font-weight:1000;">
-        <span>Subtotal</span>
-        <span id="cartSubtotal">0 ETB</span>
-      </div>
+      <input id="editMongoId" type="hidden" />
 
-      <button class="btn btn-dark" style="width:100%;margin-top:1rem;" onclick="continueShopping()">Continue Shopping</button>
-      <button class="btn-primary" style="width:100%;margin-top:0.6rem;" onclick="openCheckout()">Checkout</button>
-      <button class="btn btn-dark" style="width:100%;margin-top:0.6rem;" onclick="clearCart()">Clear Cart</button>
-    </div>
-  </div>
+      <label>Name</label>
+      <input id="editName" />
 
-  <div id="checkoutModal" class="modal-backdrop hidden">
-    <div class="modal" style="width:min(720px,100%);">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <h2>✅ Checkout</h2>
-        <button class="btn btn-dark" style="width:auto;padding:0.5rem 0.75rem;border-radius:10px;" onclick="closeCheckout()">✕</button>
-      </div>
-      <p class="muted">Fill your details, choose payment, and place your order.</p>
+      <label style="margin-top:0.75rem;">Description</label>
+      <textarea id="editDescription" rows="3"></textarea>
 
-      <div class="row">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.75rem;">
         <div>
-          <label>Full Name</label>
-          <input id="ckFullName" placeholder="Full name">
-        </div>
-        <div>
-          <label>Phone</label>
-          <input id="ckPhone" placeholder="+251...">
-        </div>
-      </div>
-
-      <div class="row" style="margin-top:0.75rem;">
-        <div>
-          <label>Email (optional)</label>
-          <input id="ckEmail" placeholder="you@example.com">
-        </div>
-        <div>
-          <label>City</label>
-          <input id="ckCity" placeholder="Addis Ababa">
-        </div>
-      </div>
-
-      <div style="margin-top:0.75rem;">
-        <label>Address</label>
-        <input id="ckAddress" placeholder="Street, building, etc...">
-      </div>
-
-      <div style="margin-top:0.75rem;">
-        <label>Country</label>
-        <input id="ckCountry" value="Ethiopia">
-      </div>
-
-      <div style="margin-top:0.75rem;">
-        <label>Order Notes (optional)</label>
-        <textarea id="ckNotes" rows="3" placeholder="Any special request..."></textarea>
-      </div>
-
-      <div class="hr"></div>
-
-      <div class="row">
-        <div>
-          <label>Payment Method</label>
-          <select id="ckPaymentMethod" onchange="renderPaymentFields()">
-            <option value="cash">Cash on Delivery</option>
-            <option value="card">Card</option>
-            <option value="telebirr">Telebirr</option>
+          <label>Category</label>
+          <select id="editCategory">
+            <option value="beans">Beans</option>
+            <option value="ground">Ground</option>
+            <option value="espresso">Espresso</option>
+            <option value="traditional">Traditional</option>
+            <option value="accessories">Accessories</option>
           </select>
         </div>
         <div>
-          <label>Total</label>
-          <input id="ckTotal" disabled>
+          <label>Price (ETB)</label>
+          <input id="editPrice" type="number" step="0.01" />
         </div>
       </div>
 
-      <div id="telebirrFields" class="hidden" style="margin-top:0.75rem;">
-        <div class="row">
-          <div>
-            <label>Telebirr Reference / Transaction ID</label>
-            <input id="ckTelebirrRef" placeholder="e.g., TB123456789">
-          </div>
-          <div>
-            <label>Upload Payment Proof (optional)</label>
-            <input id="ckProof" type="file" accept="image/*">
-          </div>
-        </div>
+      <div style="margin-top:0.75rem;">
+        <label>Replace Image (optional, max 2MB)</label>
+        <input id="editImage" type="file" accept="image/*" />
+        <img id="editPreview" class="image-preview hidden" alt="Preview" />
       </div>
 
-      <div id="cardFields" class="hidden" style="margin-top:0.75rem;">
-        <p style="color:#636e72;font-size:0.95rem;">
-          Card processing is a demo placeholder. You can integrate Stripe/PayPal later.
-        </p>
+      <div class="hr"></div>
+
+      <div class="actions">
+        <button class="btn-primary" onclick="saveEditProduct()">Save</button>
+        <button class="btn btn-danger" onclick="closeEditModal()">Cancel</button>
       </div>
 
-      <div class="actions" style="margin-top:1rem;">
-        <button class="btn-primary" onclick="placeOrder()">Place Order</button>
-        <button class="btn btn-dark" style="width:auto;padding:0.85rem 1rem;" onclick="closeCheckout()">Cancel</button>
-      </div>
-
-      <p id="checkoutMsg" style="margin-top:0.75rem;color:#e74c3c;font-weight:1000;"></p>
+      <p id="editMsg" style="margin-top:0.75rem;color:#e74c3c;font-weight:1000;"></p>
     </div>
   </div>
 
@@ -403,9 +279,9 @@
       </div>
 
       <div>
-        <h3>Contact</h3>
-        <p>📞 Phone: <a href="tel:+251900000000">+251 900 000 000</a></p>
-        <p>✉️ Email: <a href="mailto:info@yordicoffee.com">info@yordicoffee.com</a></p>
+        <h3>Backend</h3>
+        <p>API Base: <span id="apiLabel" style="font-weight:1000;"></span></p>
+        <p>Health: <span id="healthLabel" style="font-weight:1000;"></span></p>
       </div>
 
       <div>
@@ -420,12 +296,9 @@
     </div>
   </footer>
 
- <script>
-  // ✅ PUT YOUR DEPLOYED BACKEND URL HERE (Render/Railway/Fly)
-  // Example: https://yordi-coffee-api.onrender.com
-  const BACKEND_URL = "https://YOUR-BACKEND.onrender.com";
-
-  // ✅ Local vs Production
+<script>
+  // ✅ Local vs deployed
+  const BACKEND_URL = "https://YOUR-BACKEND.onrender.com"; // change when deployed
   const API_BASE =
     (location.hostname === "localhost" || location.hostname === "127.0.0.1")
       ? "http://localhost:3000"
@@ -435,15 +308,6 @@
 
   let products = [];
   let currentFilter = "all";
-  let cart = JSON.parse(localStorage.getItem("YORDI_CART") || "[]");
-
-  const ADMIN_KEY_STORAGE = "YORDI_ADMIN_KEY";
-  const getAdminKey = () => localStorage.getItem(ADMIN_KEY_STORAGE) || "";
-
-  const AUTH_TOKEN_KEY = "YORDI_AUTH_TOKEN";
-  const getToken = () => localStorage.getItem(AUTH_TOKEN_KEY) || "";
-  const setToken = (t) => localStorage.setItem(AUTH_TOKEN_KEY, t);
-  const clearToken = () => localStorage.removeItem(AUTH_TOKEN_KEY);
 
   function escapeHtml(str){
     return String(str ?? "")
@@ -461,59 +325,41 @@
     catch { return { text, json: null }; }
   }
 
-  function setStatus(msg, isError=false){
-    const el = document.getElementById("adminStatus");
-    if(!el) return;
-    el.textContent = msg || "";
-    el.style.color = isError ? "#e74c3c" : "#636e72";
-  }
-
-  function saveCart(){
-    localStorage.setItem("YORDI_CART", JSON.stringify(cart));
-    updateCartCount();
-  }
-
-  function updateCartCount(){
-    const count = cart.reduce((s, it) => s + (Number(it.qty)||1), 0);
-    document.getElementById("cartCount").textContent = count;
-  }
-
-  function cartSubtotal(){
-    return cart.reduce((s, it) => s + (Number(it.price)||0) * (Number(it.qty)||1), 0);
-  }
-
   function showShop(){
-    document.getElementById("ordersSection").classList.add("hidden");
     document.getElementById("adminSection").classList.add("hidden");
     document.getElementById("shopSection").scrollIntoView({ behavior:"smooth" });
   }
 
-  function continueShopping(){
-    closeCart();
-    showShop();
-  }
-
   function openAdmin(){
-    document.getElementById("ordersSection").classList.add("hidden");
     document.getElementById("adminSection").classList.remove("hidden");
+    document.getElementById("adminSection").scrollIntoView({ behavior:"smooth" });
     renderProductList();
-    window.scrollTo({ top: document.getElementById("adminSection").offsetTop, behavior: "smooth" });
   }
 
-  async function openOrders(){
-    document.getElementById("adminSection").classList.add("hidden");
-    document.getElementById("ordersSection").classList.remove("hidden");
-    window.scrollTo({ top: document.getElementById("ordersSection").offsetTop, behavior:"smooth" });
+  function setAdminStatus(msg, isError=false){
+    const el = document.getElementById("adminStatus");
+    el.textContent = msg || "";
+    el.style.color = isError ? "#e74c3c" : "#636e72";
+  }
 
-    if(!getToken()){
-      document.getElementById("ordersList").innerHTML =
-        '<div style="padding:1rem;border:1px solid #eee;border-radius:14px;color:#636e72;">Please login to view orders. <span class="link" onclick="openAuth()">Login</span></div>';
-      return;
+  async function checkHealth(){
+    const label = document.getElementById("healthLabel");
+    try{
+      const res = await fetch(API_BASE + "/api/health", { cache:"no-store" });
+      const { json } = await readJsonSafe(res);
+      if(res.ok && json && json.mongoState === 1){
+        label.textContent = "✅ Mongo connected";
+        label.style.color = "#b6ffb6";
+      } else {
+        label.textContent = "⚠️ Mongo not connected";
+        label.style.color = "#ffd6d6";
+      }
+    }catch(e){
+      label.textContent = "❌ Backend not reachable";
+      label.style.color = "#ffd6d6";
     }
-    await loadMyOrders();
   }
 
-  // ✅ Better product loader with good error output
   async function loadProducts(){
     const loading = document.getElementById("loadingProducts");
     const url = API_BASE + "/api/coffee";
@@ -560,7 +406,7 @@
     const grid = document.getElementById("productsGrid");
     const filtered = (currentFilter === "all")
       ? products
-      : products.filter(p => p.category === currentFilter);
+      : products.filter(p => String(p.category || "") === String(currentFilter));
 
     if (!filtered.length) {
       grid.innerHTML = `<div style="padding:1rem;color:#636e72;">No items found.</div>`;
@@ -570,344 +416,22 @@
     grid.innerHTML = filtered.map(p => `
       <div class="product-card">
         <div class="product-image">
-          <img src="${p.image || ''}" alt="${escapeHtml(p.name || 'Coffee')}" onerror="this.style.display='none'">
+          ${p.image ? `<img src="${p.image}" alt="${escapeHtml(p.name || 'Coffee')}" />` : ``}
         </div>
         <div class="product-details">
-          <div class="product-category">${escapeHtml(p.category || '')} • ${escapeHtml(p.size || '')}</div>
+          <div class="product-category">${escapeHtml(p.category || '')}</div>
           <div class="product-name">${escapeHtml(p.name || '')}</div>
           ${p.description ? `<p style="font-size:0.95rem;color:#636e72;margin:0.4rem 0;">${escapeHtml(p.description)}</p>` : ""}
           <div class="product-price">${formatMoney(p.price)} ETB</div>
-          <button class="btn btn-dark" onclick="addToCart('${String(p.id).replaceAll("'","")}')">Add to Cart</button>
+          <button class="btn btn-dark" onclick="openEditFromShop('${p._id}')">Edit</button>
         </div>
       </div>
     `).join("");
   }
 
-  function addToCart(productId){
-    const p = products.find(x => String(x.id) === String(productId));
-    if(!p) return alert("Item not found");
-
-    const existing = cart.find(x => String(x.productId) === String(productId));
-    if(existing){
-      existing.qty = (Number(existing.qty)||1) + 1;
-    }else{
-      cart.push({
-        productId: p.id,
-        name: p.name,
-        price: Number(p.price)||0,
-        qty: 1,
-        image: p.image || ""
-      });
-    }
-    saveCart();
-    openCart();
-  }
-
-  function removeFromCart(productId){
-    cart = cart.filter(x => String(x.productId) !== String(productId));
-    saveCart();
-    renderCart();
-  }
-
-  function changeQty(productId, delta){
-    const it = cart.find(x => String(x.productId) === String(productId));
-    if(!it) return;
-    it.qty = Math.max(1, (Number(it.qty)||1) + delta);
-    saveCart();
-    renderCart();
-  }
-
-  function clearCart(){
-    if(!confirm("Clear cart?")) return;
-    cart = [];
-    saveCart();
-    renderCart();
-  }
-
-  function openCart(){
-    document.getElementById("cartDrawer").classList.remove("hidden");
-    renderCart();
-  }
-
-  function closeCart(){
-    document.getElementById("cartDrawer").classList.add("hidden");
-  }
-
-  function renderCart(){
-    const box = document.getElementById("cartItems");
-    if(cart.length === 0){
-      box.innerHTML = `<div style="padding:1rem;color:#636e72;border:1px solid #eee;border-radius:14px;margin-top:1rem;">Your cart is empty.</div>`;
-      document.getElementById("cartSubtotal").textContent = "0 ETB";
-      return;
-    }
-
-    box.innerHTML = cart.map(it => `
-      <div class="cart-item">
-        <div class="cart-thumb"><img src="${it.image || ''}" onerror="this.style.display='none'"></div>
-        <div style="flex:1;">
-          <div style="font-weight:1000;">${escapeHtml(it.name || "")}</div>
-          <div style="color:#e74c3c;font-weight:1000;margin-top:0.2rem;">${formatMoney(it.price)} ETB</div>
-          <div class="qty">
-            <button onclick="changeQty('${String(it.productId).replaceAll("'","")}', -1)">-</button>
-            <span>${Number(it.qty)||1}</span>
-            <button onclick="changeQty('${String(it.productId).replaceAll("'","")}', 1)">+</button>
-          </div>
-        </div>
-        <div class="remove-x" title="Remove" onclick="removeFromCart('${String(it.productId).replaceAll("'","")}')">✕</div>
-      </div>
-    `).join("");
-
-    document.getElementById("cartSubtotal").textContent = `${formatMoney(cartSubtotal())} ETB`;
-  }
-
-  function openCheckout(){
-    if(cart.length === 0) return alert("Cart is empty");
-    if(!getToken()){
-      alert("Please login first to checkout.");
-      openAuth();
-      return;
-    }
-    document.getElementById("checkoutMsg").textContent = "";
-    document.getElementById("ckTotal").value = formatMoney(cartSubtotal()) + " ETB";
-    renderPaymentFields();
-    document.getElementById("checkoutModal").classList.remove("hidden");
-  }
-
-  function closeCheckout(){ document.getElementById("checkoutModal").classList.add("hidden"); }
-
-  function renderPaymentFields(){
-    const method = document.getElementById("ckPaymentMethod").value;
-    document.getElementById("telebirrFields").classList.toggle("hidden", method !== "telebirr");
-    document.getElementById("cardFields").classList.toggle("hidden", method !== "card");
-  }
-
-  async function placeOrder(){
-    const msgEl = document.getElementById("checkoutMsg");
-    msgEl.textContent = "";
-
-    const fullName = document.getElementById("ckFullName").value.trim();
-    const phone = document.getElementById("ckPhone").value.trim();
-    const email = document.getElementById("ckEmail").value.trim();
-    const address = document.getElementById("ckAddress").value.trim();
-    const city = document.getElementById("ckCity").value.trim();
-    const country = document.getElementById("ckCountry").value.trim();
-    const notes = document.getElementById("ckNotes").value.trim();
-    const paymentMethod = document.getElementById("ckPaymentMethod").value;
-    const telebirrRef = document.getElementById("ckTelebirrRef").value.trim();
-    const proofFile = document.getElementById("ckProof").files[0];
-
-    if(!fullName) return msgEl.textContent = "Full name is required";
-    if(!phone) return msgEl.textContent = "Phone is required";
-    if(!address) return msgEl.textContent = "Address is required";
-
-    const fd = new FormData();
-    fd.append("items", JSON.stringify(cart.map(it => ({
-      productId: it.productId, name: it.name, price: it.price, qty: it.qty, image: it.image || ""
-    }))));
-    fd.append("fullName", fullName);
-    fd.append("phone", phone);
-    fd.append("email", email);
-    fd.append("address", address);
-    fd.append("city", city);
-    fd.append("country", country);
-    fd.append("notes", notes);
-    fd.append("paymentMethod", paymentMethod);
-    fd.append("telebirrRef", telebirrRef);
-    if(proofFile) fd.append("paymentProof", proofFile);
-
-    try{
-      const res = await fetch(API_BASE + "/api/orders", {
-        method: "POST",
-        headers: { "Authorization": "Bearer " + getToken() },
-        body: fd
-      });
-      const { text, json } = await readJsonSafe(res);
-      if(!res.ok){
-        alert(`ORDER FAILED\nStatus: ${res.status}\n${text}`);
-        throw new Error(json?.error || json?.details || text || "Order failed");
-      }
-      alert("✅ Order placed! Order ID: " + (json?.order?.orderId || ""));
-      closeCheckout();
-      closeCart();
-      cart = [];
-      saveCart();
-      await openOrders();
-    }catch(e){
-      msgEl.textContent = e.message;
-    }
-  }
-
-  // AUTH
-  function openAuth(){
-    document.getElementById("authModal").classList.remove("hidden");
-    switchToLogin();
-  }
-  function closeAuth(){ document.getElementById("authModal").classList.add("hidden"); }
-
-  function switchToRegister(){
-    document.getElementById("authTitle").textContent = "Create Account";
-    document.getElementById("authSubtitle").textContent = "Register to track your orders anytime.";
-    document.getElementById("authFormLogin").classList.add("hidden");
-    document.getElementById("authFormRegister").classList.remove("hidden");
-    document.getElementById("authMsg").textContent = "";
-    document.getElementById("authMsg2").textContent = "";
-  }
-
-  function switchToLogin(){
-    document.getElementById("authTitle").textContent = "Login";
-    document.getElementById("authSubtitle").textContent = "Login to see your orders and checkout faster.";
-    document.getElementById("authFormRegister").classList.add("hidden");
-    document.getElementById("authFormLogin").classList.remove("hidden");
-    document.getElementById("authMsg").textContent = "";
-    document.getElementById("authMsg2").textContent = "";
-  }
-
-  function setAuthLabel(){
-    document.getElementById("authLabel").textContent = getToken() ? "Account" : "Login";
-  }
-
-  function openAccountMenu(){
-    if(!getToken()){
-      openAuth();
-      return;
-    }
-    const choice = prompt("Type: 1 = My Orders, 2 = Logout");
-    if(choice === "1") openOrders();
-    if(choice === "2"){ clearToken(); setAuthLabel(); alert("Logged out."); }
-  }
-
-  async function doRegister(){
-    const msg = document.getElementById("authMsg2");
-    msg.textContent = "";
-    const fullName = document.getElementById("regFullName").value.trim();
-    const email = document.getElementById("regEmail").value.trim();
-    const password = document.getElementById("regPassword").value;
-
-    try{
-      const res = await fetch(API_BASE + "/api/auth/register", {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ fullName, email, password })
-      });
-      const { text, json } = await readJsonSafe(res);
-      if(!res.ok) throw new Error(json?.error || json?.details || text || "Register failed");
-      setToken(json.token);
-      setAuthLabel();
-      closeAuth();
-      alert("✅ Account created! You are logged in.");
-    }catch(e){ msg.textContent = e.message; }
-  }
-
-  async function doLogin(){
-    const msg = document.getElementById("authMsg");
-    msg.textContent = "";
-    const email = document.getElementById("loginEmail").value.trim();
-    const password = document.getElementById("loginPassword").value;
-
-    try{
-      const res = await fetch(API_BASE + "/api/auth/login", {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ email, password })
-      });
-      const { text, json } = await readJsonSafe(res);
-      if(!res.ok) throw new Error(json?.error || json?.details || text || "Login failed");
-      setToken(json.token);
-      setAuthLabel();
-      closeAuth();
-      alert("✅ Logged in!");
-    }catch(e){ msg.textContent = e.message; }
-  }
-
-  async function loadMyOrders(){
-    const box = document.getElementById("ordersList");
-    box.innerHTML = `<div style="padding:1rem;color:#636e72;border:1px solid #eee;border-radius:14px;">Loading...</div>`;
-
-    try{
-      const res = await fetch(API_BASE + "/api/orders/my", {
-        headers: { "Authorization": "Bearer " + getToken() }
-      });
-      const { text, json } = await readJsonSafe(res);
-      if(!res.ok) throw new Error(json?.error || json?.details || text || "Failed to load orders");
-
-      const orders = Array.isArray(json) ? json : [];
-      if(orders.length === 0){
-        box.innerHTML = `<div style="padding:1rem;color:#636e72;border:1px solid #eee;border-radius:14px;">No orders yet.</div>`;
-        return;
-      }
-
-      box.innerHTML = orders.map(o => {
-        const itemsHtml = (o.items || []).map(it => `
-          <div style="display:flex;gap:0.75rem;align-items:center;padding:0.5rem 0;border-bottom:1px solid #f3f3f3;">
-            <div style="flex:1;">
-              <div style="font-weight:1000;">${escapeHtml(it.name || "")}</div>
-              <div style="color:#636e72;font-weight:900;font-size:0.95rem;">Qty: ${Number(it.qty)||1} • ${formatMoney(it.price)} ETB</div>
-            </div>
-          </div>
-        `).join("");
-
-        return `
-          <div style="border:1px solid #eee;border-radius:16px;padding:1rem;margin-bottom:1rem;">
-            <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
-              <div>
-                <div style="font-weight:1000;font-size:1.05rem;">Order: ${escapeHtml(o.orderId || "")}</div>
-                <div style="color:#636e72;font-weight:900;font-size:0.95rem;">
-                  Status: ${escapeHtml(o.status || "placed")} • Payment: ${escapeHtml(o.payment?.method || "")} (${escapeHtml(o.payment?.status || "pending")})
-                </div>
-              </div>
-              <div style="font-weight:1000;color:#e74c3c;font-size:1.05rem;">${formatMoney(o.total)} ETB</div>
-            </div>
-
-            <div style="margin-top:0.75rem;">${itemsHtml}</div>
-
-            <div style="margin-top:0.75rem;color:#636e72;font-weight:900;font-size:0.95rem;">
-              Placed: ${new Date(o.createdAt).toLocaleString()}
-            </div>
-          </div>
-        `;
-      }).join("");
-    }catch(e){
-      box.innerHTML = `<div style="padding:1rem;color:#e74c3c;border:1px solid #eee;border-radius:14px;">${escapeHtml(e.message)}</div>`;
-    }
-  }
-
-  // ADMIN
-  function setAdminKey() {
-    const k = prompt("Enter ADMIN_API_KEY:");
-    if (!k) return;
-    localStorage.setItem(ADMIN_KEY_STORAGE, k.trim());
-    alert("Admin key saved on this browser.");
-  }
-  function logoutAdmin() {
-    localStorage.removeItem(ADMIN_KEY_STORAGE);
-    alert("Admin key removed.");
-  }
-
-  async function testAdminKey(){
-    const k = getAdminKey();
-    if (!k) return alert("Admin key not set. Click 'Set Admin Key' first.");
-    try{
-      const fd = new FormData();
-      fd.append("name", "TEST");
-      fd.append("category", "beans");
-      fd.append("size", "single");
-      fd.append("price", "1");
-
-      const res = await fetch(API_BASE + "/api/coffee", {
-        method: "POST",
-        headers: { "x-admin-key": k },
-        body: fd
-      });
-
-      const { text, json } = await readJsonSafe(res);
-      if (res.status === 401) return alert("❌ Unauthorized. Admin key is wrong.");
-      if (res.status === 400 && (json?.error || "").toLowerCase().includes("image")) {
-        return alert("✅ Admin key is correct (auth passed).");
-      }
-      alert("Response: " + res.status + "\n" + text);
-    }catch(e){
-      alert("Test error: " + e.message);
-    }
+  function openEditFromShop(mongoId){
+    openAdmin();
+    openEditProduct(mongoId);
   }
 
   function renderProductList(){
@@ -920,57 +444,114 @@
     list.innerHTML = products.map(p => `
       <div class="product-item">
         <div class="product-item-image">
-          <img src="${p.image || ''}" alt="${escapeHtml(p.name || '')}" onerror="this.style.display='none'">
+          ${p.image ? `<img src="${p.image}" alt="${escapeHtml(p.name || '')}">` : ``}
         </div>
         <div class="product-item-details">
           <h3>${escapeHtml(p.name || '')}</h3>
-          <p><b>Category:</b> ${escapeHtml(p.category || '')} | <b>Size:</b> ${escapeHtml(p.size || '')}</p>
+          <p><b>Category:</b> ${escapeHtml(p.category || '')}</p>
           <p><b>Price:</b> ${formatMoney(p.price)} ETB</p>
         </div>
         <div class="product-actions">
-          <button class="btn-ghost" onclick="openEditProduct('${String(p.id).replaceAll("'","")}')">Edit</button>
-          <button class="btn-danger" onclick="deleteProduct('${String(p.id).replaceAll("'","")}')">Delete</button>
+          <button class="btn-ghost" onclick="openEditProduct('${p._id}')">Edit</button>
+          <button class="btn-danger" onclick="deleteProduct('${p._id}')">Delete</button>
         </div>
       </div>
     `).join("");
   }
 
-  function openEditProduct(id){
-    const p = products.find(x => String(x.id) === String(id));
+  async function fileToBase64(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ADD ITEM (JSON POST)
+  async function addProduct(formEl){
+    const file = document.getElementById("imageInput").files[0];
+    if (file && file.size > 2 * 1024 * 1024) return alert("Image too large. Please use an image under 2MB.");
+
+    const payload = {
+      name: document.getElementById("productName").value.trim(),
+      description: document.getElementById("productDescription").value.trim(),
+      category: document.getElementById("productCategory").value,
+      price: Number(document.getElementById("productPrice").value),
+      image: ""
+    };
+
+    if(!payload.name) return alert("Name is required");
+    if(!payload.price) return alert("Price is required");
+
+    if(file){
+      payload.image = await fileToBase64(file);
+    }
+
+    const btn = document.getElementById("addBtn");
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+    setAdminStatus("Saving coffee...");
+
+    try{
+      const res = await fetch(API_BASE + "/api/coffee", {
+        method: "POST",
+        headers: { "Content-Type":"application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const { text, json } = await readJsonSafe(res);
+      if (!res.ok) throw new Error(json?.error || json?.details || text || "Failed to add item");
+
+      alert("✅ Coffee item added!");
+      setAdminStatus("Saved ✅");
+
+      formEl.reset();
+      document.getElementById("imagePreview").classList.add("hidden");
+
+      await loadProducts();
+    }catch(e){
+      setAdminStatus("Error: " + e.message, true);
+      alert("Add error: " + e.message);
+    }finally{
+      btn.disabled = false;
+      btn.textContent = "Add Item";
+    }
+  }
+
+  // EDIT MODAL
+  function openEditProduct(mongoId){
+    const p = products.find(x => String(x._id) === String(mongoId));
     if(!p) return alert("Item not found");
 
     document.getElementById("editMsg").textContent = "";
-    document.getElementById("editId").value = p.id;
+    document.getElementById("editMongoId").value = p._id;
     document.getElementById("editName").value = p.name || "";
     document.getElementById("editPrice").value = Number(p.price) || 0;
     document.getElementById("editDescription").value = p.description || "";
     document.getElementById("editCategory").value = p.category || "beans";
-    document.getElementById("editSize").value = p.size || "single";
 
     const prev = document.getElementById("editPreview");
     if(p.image){
       prev.src = p.image;
-      prev.style.display = "block";
+      prev.classList.remove("hidden");
     } else {
-      prev.style.display = "none";
+      prev.classList.add("hidden");
     }
-
     document.getElementById("editImage").value = "";
     document.getElementById("editModal").classList.remove("hidden");
   }
 
-  function closeEditModal(){ document.getElementById("editModal").classList.add("hidden"); }
+  function closeEditModal(){
+    document.getElementById("editModal").classList.add("hidden");
+  }
 
   async function saveEditProduct(){
-    const adminKey = getAdminKey();
-    if(!adminKey) return alert("Admin key not set. Click 'Set Admin Key' first.");
-
-    const id = document.getElementById("editId").value;
+    const id = document.getElementById("editMongoId").value;
     const name = document.getElementById("editName").value.trim();
-    const price = document.getElementById("editPrice").value;
+    const price = Number(document.getElementById("editPrice").value);
     const description = document.getElementById("editDescription").value.trim();
     const category = document.getElementById("editCategory").value;
-    const size = document.getElementById("editSize").value;
     const file = document.getElementById("editImage").files[0];
 
     const msg = document.getElementById("editMsg");
@@ -980,19 +561,16 @@
     if(!price) return msg.textContent = "Price is required";
     if(file && file.size > 2 * 1024 * 1024) return msg.textContent = "Image too large (max 2MB)";
 
-    const fd = new FormData();
-    fd.append("name", name);
-    fd.append("price", price);
-    fd.append("description", description);
-    fd.append("category", category);
-    fd.append("size", size);
-    if(file) fd.append("image", file);
+    const payload = { name, price, description, category };
+    if(file){
+      payload.image = await fileToBase64(file);
+    }
 
     try{
       const res = await fetch(API_BASE + "/api/coffee/" + encodeURIComponent(id), {
         method: "PUT",
-        headers: { "x-admin-key": adminKey },
-        body: fd
+        headers: { "Content-Type":"application/json" },
+        body: JSON.stringify(payload)
       });
 
       const { text, json } = await readJsonSafe(res);
@@ -1006,100 +584,51 @@
     }
   }
 
-  document.addEventListener("change", (e) => {
-    if(e.target && e.target.id === "editImage"){
-      const file = e.target.files && e.target.files[0];
-      if(!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const prev = document.getElementById("editPreview");
-        prev.src = ev.target.result;
-        prev.style.display = "block";
-      };
-      reader.readAsDataURL(file);
-    }
-  });
-
-  async function deleteProduct(id){
+  async function deleteProduct(mongoId){
     if (!confirm("Delete this item?")) return;
 
-    const adminKey = getAdminKey();
-    if (!adminKey) return alert("Admin key not set. Click 'Set Admin Key' first.");
-
     try{
-      const res = await fetch(API_BASE + "/api/coffee/" + encodeURIComponent(id), {
-        method: "DELETE",
-        headers: { "x-admin-key": adminKey }
+      const res = await fetch(API_BASE + "/api/coffee/" + encodeURIComponent(mongoId), {
+        method: "DELETE"
       });
 
       const { text, json } = await readJsonSafe(res);
       if (!res.ok) throw new Error(json?.error || json?.details || text || "Delete failed");
 
-      alert("Deleted!");
+      alert("✅ Deleted!");
       await loadProducts();
     }catch(e){
       alert("Delete error: " + e.message);
     }
   }
 
-  async function addProduct(formEl){
-    const adminKey = getAdminKey();
-    if (!adminKey) return alert("Admin key not set. Click 'Set Admin Key' first.");
-
-    const file = document.getElementById("imageInput").files[0];
-    if (!file) return alert("Please select an image file.");
-    if (file.size > 2 * 1024 * 1024) return alert("Image too large. Please use an image under 2MB.");
-
-    const fd = new FormData();
-    fd.append("image", file);
-    fd.append("name", document.getElementById("productName").value.trim());
-    fd.append("description", document.getElementById("productDescription").value.trim());
-    fd.append("category", document.getElementById("productCategory").value);
-    fd.append("size", document.getElementById("productSize").value);
-    fd.append("price", document.getElementById("productPrice").value);
-
-    const btn = document.getElementById("addBtn");
-    btn.disabled = true;
-    btn.textContent = "Uploading...";
-    setStatus("Uploading image + saving coffee...");
-
-    try{
-      const res = await fetch(API_BASE + "/api/coffee", {
-        method: "POST",
-        headers: { "x-admin-key": adminKey },
-        body: fd
-      });
-
-      const { text, json } = await readJsonSafe(res);
-      if (!res.ok) throw new Error(json?.error || json?.details || text || "Failed to add item");
-
-      alert("Coffee item added!");
-      setStatus("Saved ✅");
-
-      formEl.reset();
-      document.getElementById("imagePreview").classList.add("hidden");
-
-      await loadProducts();
-    }catch(e){
-      setStatus("Error: " + e.message, true);
-      alert("Add error: " + e.message);
-    }finally{
-      btn.disabled = false;
-      btn.textContent = "Add Item";
-    }
+  function reloadAll(){
+    loadProducts();
+    checkHealth();
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    const yy = document.getElementById("yy");
-    if (yy) yy.textContent = new Date().getFullYear();
+    document.getElementById("yy").textContent = new Date().getFullYear();
+    document.getElementById("apiLabel").textContent = API_BASE;
 
     document.getElementById("imageInput").addEventListener("change", (e) => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = (ev) => {
         const img = document.getElementById("imagePreview");
+        img.src = ev.target.result;
+        img.classList.remove("hidden");
+      };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById("editImage").addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = document.getElementById("editPreview");
         img.src = ev.target.result;
         img.classList.remove("hidden");
       };
@@ -1111,8 +640,7 @@
       await addProduct(e.target);
     });
 
-    updateCartCount();
-    setAuthLabel();
+    checkHealth();
     loadProducts();
   });
 </script>
