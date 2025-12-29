@@ -420,410 +420,433 @@
     </div>
   </footer>
 
-  <script>
-    // ✅ AUTO API BASE:
-    // 1) Localhost => http://localhost:3000
-    // 2) If window.RENDER_BACKEND_URL is set => use it
-    // 3) Otherwise => use same origin (if frontend served by backend)
-    const API_BASE =
-      (location.hostname === "localhost" || location.hostname === "127.0.0.1")
-        ? "http://localhost:3000"
-        : (window.RENDER_BACKEND_URL || location.origin);
+ <script>
+  // ✅ PUT YOUR DEPLOYED BACKEND URL HERE (Render/Railway/Fly)
+  // Example: https://yordi-coffee-api.onrender.com
+  const BACKEND_URL = "https://YOUR-BACKEND.onrender.com";
 
-    let products = [];
-    let currentFilter = "all";
-    let cart = JSON.parse(localStorage.getItem("YORDI_CART") || "[]");
+  // ✅ Local vs Production
+  const API_BASE =
+    (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+      ? "http://localhost:3000"
+      : BACKEND_URL;
 
-    const ADMIN_KEY_STORAGE = "YORDI_ADMIN_KEY";
-    const getAdminKey = () => localStorage.getItem(ADMIN_KEY_STORAGE) || "";
+  console.log("API_BASE:", API_BASE);
 
-    const AUTH_TOKEN_KEY = "YORDI_AUTH_TOKEN";
-    const getToken = () => localStorage.getItem(AUTH_TOKEN_KEY) || "";
-    const setToken = (t) => localStorage.setItem(AUTH_TOKEN_KEY, t);
-    const clearToken = () => localStorage.removeItem(AUTH_TOKEN_KEY);
+  let products = [];
+  let currentFilter = "all";
+  let cart = JSON.parse(localStorage.getItem("YORDI_CART") || "[]");
 
-    function escapeHtml(str){
-      return String(str ?? "")
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#039;");
+  const ADMIN_KEY_STORAGE = "YORDI_ADMIN_KEY";
+  const getAdminKey = () => localStorage.getItem(ADMIN_KEY_STORAGE) || "";
+
+  const AUTH_TOKEN_KEY = "YORDI_AUTH_TOKEN";
+  const getToken = () => localStorage.getItem(AUTH_TOKEN_KEY) || "";
+  const setToken = (t) => localStorage.setItem(AUTH_TOKEN_KEY, t);
+  const clearToken = () => localStorage.removeItem(AUTH_TOKEN_KEY);
+
+  function escapeHtml(str){
+    return String(str ?? "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+  function formatMoney(n){ return (Number(n)||0).toFixed(0); }
+
+  async function readJsonSafe(res){
+    const text = await res.text();
+    try { return { text, json: JSON.parse(text) }; }
+    catch { return { text, json: null }; }
+  }
+
+  function setStatus(msg, isError=false){
+    const el = document.getElementById("adminStatus");
+    if(!el) return;
+    el.textContent = msg || "";
+    el.style.color = isError ? "#e74c3c" : "#636e72";
+  }
+
+  function saveCart(){
+    localStorage.setItem("YORDI_CART", JSON.stringify(cart));
+    updateCartCount();
+  }
+
+  function updateCartCount(){
+    const count = cart.reduce((s, it) => s + (Number(it.qty)||1), 0);
+    document.getElementById("cartCount").textContent = count;
+  }
+
+  function cartSubtotal(){
+    return cart.reduce((s, it) => s + (Number(it.price)||0) * (Number(it.qty)||1), 0);
+  }
+
+  function showShop(){
+    document.getElementById("ordersSection").classList.add("hidden");
+    document.getElementById("adminSection").classList.add("hidden");
+    document.getElementById("shopSection").scrollIntoView({ behavior:"smooth" });
+  }
+
+  function continueShopping(){
+    closeCart();
+    showShop();
+  }
+
+  function openAdmin(){
+    document.getElementById("ordersSection").classList.add("hidden");
+    document.getElementById("adminSection").classList.remove("hidden");
+    renderProductList();
+    window.scrollTo({ top: document.getElementById("adminSection").offsetTop, behavior: "smooth" });
+  }
+
+  async function openOrders(){
+    document.getElementById("adminSection").classList.add("hidden");
+    document.getElementById("ordersSection").classList.remove("hidden");
+    window.scrollTo({ top: document.getElementById("ordersSection").offsetTop, behavior:"smooth" });
+
+    if(!getToken()){
+      document.getElementById("ordersList").innerHTML =
+        '<div style="padding:1rem;border:1px solid #eee;border-radius:14px;color:#636e72;">Please login to view orders. <span class="link" onclick="openAuth()">Login</span></div>';
+      return;
     }
-    function formatMoney(n){ return (Number(n)||0).toFixed(0); }
+    await loadMyOrders();
+  }
 
-    async function readJsonSafe(res){
-      const text = await res.text();
-      try { return { text, json: JSON.parse(text) }; }
-      catch { return { text, json: null }; }
-    }
+  // ✅ Better product loader with good error output
+  async function loadProducts(){
+    const loading = document.getElementById("loadingProducts");
+    const url = API_BASE + "/api/coffee";
 
-    function setStatus(msg, isError=false){
-      const el = document.getElementById("adminStatus");
-      if(!el) return;
-      el.textContent = msg || "";
-      el.style.color = isError ? "#e74c3c" : "#636e72";
-    }
+    loading.classList.remove("hidden");
+    loading.innerHTML = "Loading coffee...";
 
-    function saveCart(){
-      localStorage.setItem("YORDI_CART", JSON.stringify(cart));
-      updateCartCount();
-    }
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      const { text, json } = await readJsonSafe(res);
 
-    function updateCartCount(){
-      const count = cart.reduce((s, it) => s + (Number(it.qty)||1), 0);
-      document.getElementById("cartCount").textContent = count;
-    }
-
-    function cartSubtotal(){
-      return cart.reduce((s, it) => s + (Number(it.price)||0) * (Number(it.qty)||1), 0);
-    }
-
-    function showShop(){
-      document.getElementById("ordersSection").classList.add("hidden");
-      document.getElementById("adminSection").classList.add("hidden");
-      document.getElementById("shopSection").scrollIntoView({ behavior:"smooth" });
-    }
-
-    function continueShopping(){
-      closeCart();
-      showShop();
-    }
-
-    function openAdmin(){
-      document.getElementById("ordersSection").classList.add("hidden");
-      document.getElementById("adminSection").classList.remove("hidden");
-      renderProductList();
-      window.scrollTo({ top: document.getElementById("adminSection").offsetTop, behavior: "smooth" });
-    }
-
-    async function openOrders(){
-      document.getElementById("adminSection").classList.add("hidden");
-      document.getElementById("ordersSection").classList.remove("hidden");
-      window.scrollTo({ top: document.getElementById("ordersSection").offsetTop, behavior:"smooth" });
-
-      if(!getToken()){
-        document.getElementById("ordersList").innerHTML =
-          '<div style="padding:1rem;border:1px solid #eee;border-radius:14px;color:#636e72;">Please login to view orders. <span class="link" onclick="openAuth()">Login</span></div>';
-        return;
+      if(!res.ok){
+        throw new Error(`Backend ${res.status}: ${json?.details || json?.error || text || "Unknown error"}`);
       }
-      await loadMyOrders();
-    }
 
-    // ✅ FIX: show real backend error
-    async function loadProducts(){
-      const loading = document.getElementById("loadingProducts");
-
-      try {
-        const res = await fetch(API_BASE + "/api/coffee", { cache: "no-store" });
-        const { text, json } = await readJsonSafe(res);
-
-        if(!res.ok){
-          throw new Error(`Backend ${res.status}: ` + (json?.details || json?.error || text));
-        }
-
-        products = Array.isArray(json) ? json : [];
-        loading.classList.add("hidden");
-        renderProducts();
-        renderProductList();
-      } catch (err) {
-        console.error("LOAD PRODUCTS ERROR:", err);
-        loading.innerHTML = `
-          <p style="color:#e74c3c;font-weight:900;">Failed to load coffee from backend.</p>
-          <p style="color:#636e72;margin-top:0.5rem;">
-            API_BASE: <b>${escapeHtml(API_BASE)}</b><br/>
-            Error: <b>${escapeHtml(err.message || String(err))}</b>
-          </p>
-        `;
-      }
-    }
-
-    function filterProducts(category, btnEl){
-      currentFilter = category;
-      document.querySelectorAll(".filter-btn").forEach(btn => btn.classList.remove("active"));
-      if (btnEl) btnEl.classList.add("active");
+      products = Array.isArray(json) ? json : [];
+      loading.classList.add("hidden");
       renderProducts();
+      renderProductList();
+    } catch (err) {
+      console.error(err);
+      loading.innerHTML = `
+        <p style="color:#e74c3c;font-weight:900;">Failed to load coffee from backend.</p>
+        <p style="color:#636e72;margin-top:0.5rem;">
+          API_BASE: <b>${escapeHtml(API_BASE)}</b><br/>
+          URL: <b>${escapeHtml(url)}</b><br/>
+          Error: <b>${escapeHtml(err.message || String(err))}</b>
+        </p>
+        <div style="margin-top:0.75rem;">
+          <button class="btn-primary" onclick="loadProducts()">Retry</button>
+        </div>
+      `;
+    }
+  }
+
+  function filterProducts(category, btnEl){
+    currentFilter = category;
+    document.querySelectorAll(".filter-btn").forEach(btn => btn.classList.remove("active"));
+    if (btnEl) btnEl.classList.add("active");
+    renderProducts();
+  }
+
+  function renderProducts(){
+    const grid = document.getElementById("productsGrid");
+    const filtered = (currentFilter === "all")
+      ? products
+      : products.filter(p => p.category === currentFilter);
+
+    if (!filtered.length) {
+      grid.innerHTML = `<div style="padding:1rem;color:#636e72;">No items found.</div>`;
+      return;
     }
 
-    function normalizeImageUrl(img){
-      if(!img) return "";
-      // If DB stores /uploads/xxx.jpg, prefix API_BASE
-      if (String(img).startsWith("/uploads/")) return API_BASE + img;
-      return img; // already absolute
+    grid.innerHTML = filtered.map(p => `
+      <div class="product-card">
+        <div class="product-image">
+          <img src="${p.image || ''}" alt="${escapeHtml(p.name || 'Coffee')}" onerror="this.style.display='none'">
+        </div>
+        <div class="product-details">
+          <div class="product-category">${escapeHtml(p.category || '')} • ${escapeHtml(p.size || '')}</div>
+          <div class="product-name">${escapeHtml(p.name || '')}</div>
+          ${p.description ? `<p style="font-size:0.95rem;color:#636e72;margin:0.4rem 0;">${escapeHtml(p.description)}</p>` : ""}
+          <div class="product-price">${formatMoney(p.price)} ETB</div>
+          <button class="btn btn-dark" onclick="addToCart('${String(p.id).replaceAll("'","")}')">Add to Cart</button>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  function addToCart(productId){
+    const p = products.find(x => String(x.id) === String(productId));
+    if(!p) return alert("Item not found");
+
+    const existing = cart.find(x => String(x.productId) === String(productId));
+    if(existing){
+      existing.qty = (Number(existing.qty)||1) + 1;
+    }else{
+      cart.push({
+        productId: p.id,
+        name: p.name,
+        price: Number(p.price)||0,
+        qty: 1,
+        image: p.image || ""
+      });
+    }
+    saveCart();
+    openCart();
+  }
+
+  function removeFromCart(productId){
+    cart = cart.filter(x => String(x.productId) !== String(productId));
+    saveCart();
+    renderCart();
+  }
+
+  function changeQty(productId, delta){
+    const it = cart.find(x => String(x.productId) === String(productId));
+    if(!it) return;
+    it.qty = Math.max(1, (Number(it.qty)||1) + delta);
+    saveCart();
+    renderCart();
+  }
+
+  function clearCart(){
+    if(!confirm("Clear cart?")) return;
+    cart = [];
+    saveCart();
+    renderCart();
+  }
+
+  function openCart(){
+    document.getElementById("cartDrawer").classList.remove("hidden");
+    renderCart();
+  }
+
+  function closeCart(){
+    document.getElementById("cartDrawer").classList.add("hidden");
+  }
+
+  function renderCart(){
+    const box = document.getElementById("cartItems");
+    if(cart.length === 0){
+      box.innerHTML = `<div style="padding:1rem;color:#636e72;border:1px solid #eee;border-radius:14px;margin-top:1rem;">Your cart is empty.</div>`;
+      document.getElementById("cartSubtotal").textContent = "0 ETB";
+      return;
     }
 
-    function renderProducts(){
-      const grid = document.getElementById("productsGrid");
-      const filtered = (currentFilter === "all")
-        ? products
-        : products.filter(p => p.category === currentFilter);
-
-      if (!filtered.length) {
-        grid.innerHTML = `<div style="padding:1rem;color:#636e72;">No items found.</div>`;
-        return;
-      }
-
-      grid.innerHTML = filtered.map(p => `
-        <div class="product-card">
-          <div class="product-image">
-            <img src="${normalizeImageUrl(p.image)}" alt="${escapeHtml(p.name || 'Coffee')}" onerror="this.style.display='none'">
-          </div>
-          <div class="product-details">
-            <div class="product-category">${escapeHtml(p.category || '')} • ${escapeHtml(p.size || '')}</div>
-            <div class="product-name">${escapeHtml(p.name || '')}</div>
-            ${p.description ? `<p style="font-size:0.95rem;color:#636e72;margin:0.4rem 0;">${escapeHtml(p.description)}</p>` : ""}
-            <div class="product-price">${formatMoney(p.price)} ETB</div>
-            <button class="btn btn-dark" onclick="addToCart('${String(p.id).replaceAll("'","")}')">Add to Cart</button>
+    box.innerHTML = cart.map(it => `
+      <div class="cart-item">
+        <div class="cart-thumb"><img src="${it.image || ''}" onerror="this.style.display='none'"></div>
+        <div style="flex:1;">
+          <div style="font-weight:1000;">${escapeHtml(it.name || "")}</div>
+          <div style="color:#e74c3c;font-weight:1000;margin-top:0.2rem;">${formatMoney(it.price)} ETB</div>
+          <div class="qty">
+            <button onclick="changeQty('${String(it.productId).replaceAll("'","")}', -1)">-</button>
+            <span>${Number(it.qty)||1}</span>
+            <button onclick="changeQty('${String(it.productId).replaceAll("'","")}', 1)">+</button>
           </div>
         </div>
-      `).join("");
+        <div class="remove-x" title="Remove" onclick="removeFromCart('${String(it.productId).replaceAll("'","")}')">✕</div>
+      </div>
+    `).join("");
+
+    document.getElementById("cartSubtotal").textContent = `${formatMoney(cartSubtotal())} ETB`;
+  }
+
+  function openCheckout(){
+    if(cart.length === 0) return alert("Cart is empty");
+    if(!getToken()){
+      alert("Please login first to checkout.");
+      openAuth();
+      return;
     }
+    document.getElementById("checkoutMsg").textContent = "";
+    document.getElementById("ckTotal").value = formatMoney(cartSubtotal()) + " ETB";
+    renderPaymentFields();
+    document.getElementById("checkoutModal").classList.remove("hidden");
+  }
 
-    function addToCart(productId){
-      const p = products.find(x => String(x.id) === String(productId));
-      if(!p) return alert("Item not found");
+  function closeCheckout(){ document.getElementById("checkoutModal").classList.add("hidden"); }
 
-      const existing = cart.find(x => String(x.productId) === String(productId));
-      if(existing){
-        existing.qty = (Number(existing.qty)||1) + 1;
-      }else{
-        cart.push({
-          productId: p.id,
-          name: p.name,
-          price: Number(p.price)||0,
-          qty: 1,
-          image: normalizeImageUrl(p.image)
-        });
+  function renderPaymentFields(){
+    const method = document.getElementById("ckPaymentMethod").value;
+    document.getElementById("telebirrFields").classList.toggle("hidden", method !== "telebirr");
+    document.getElementById("cardFields").classList.toggle("hidden", method !== "card");
+  }
+
+  async function placeOrder(){
+    const msgEl = document.getElementById("checkoutMsg");
+    msgEl.textContent = "";
+
+    const fullName = document.getElementById("ckFullName").value.trim();
+    const phone = document.getElementById("ckPhone").value.trim();
+    const email = document.getElementById("ckEmail").value.trim();
+    const address = document.getElementById("ckAddress").value.trim();
+    const city = document.getElementById("ckCity").value.trim();
+    const country = document.getElementById("ckCountry").value.trim();
+    const notes = document.getElementById("ckNotes").value.trim();
+    const paymentMethod = document.getElementById("ckPaymentMethod").value;
+    const telebirrRef = document.getElementById("ckTelebirrRef").value.trim();
+    const proofFile = document.getElementById("ckProof").files[0];
+
+    if(!fullName) return msgEl.textContent = "Full name is required";
+    if(!phone) return msgEl.textContent = "Phone is required";
+    if(!address) return msgEl.textContent = "Address is required";
+
+    const fd = new FormData();
+    fd.append("items", JSON.stringify(cart.map(it => ({
+      productId: it.productId, name: it.name, price: it.price, qty: it.qty, image: it.image || ""
+    }))));
+    fd.append("fullName", fullName);
+    fd.append("phone", phone);
+    fd.append("email", email);
+    fd.append("address", address);
+    fd.append("city", city);
+    fd.append("country", country);
+    fd.append("notes", notes);
+    fd.append("paymentMethod", paymentMethod);
+    fd.append("telebirrRef", telebirrRef);
+    if(proofFile) fd.append("paymentProof", proofFile);
+
+    try{
+      const res = await fetch(API_BASE + "/api/orders", {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + getToken() },
+        body: fd
+      });
+      const { text, json } = await readJsonSafe(res);
+      if(!res.ok){
+        alert(`ORDER FAILED\nStatus: ${res.status}\n${text}`);
+        throw new Error(json?.error || json?.details || text || "Order failed");
       }
-      saveCart();
-      openCart();
-    }
-
-    function removeFromCart(productId){
-      cart = cart.filter(x => String(x.productId) !== String(productId));
-      saveCart();
-      renderCart();
-    }
-
-    function changeQty(productId, delta){
-      const it = cart.find(x => String(x.productId) === String(productId));
-      if(!it) return;
-      it.qty = Math.max(1, (Number(it.qty)||1) + delta);
-      saveCart();
-      renderCart();
-    }
-
-    function clearCart(){
-      if(!confirm("Clear cart?")) return;
+      alert("✅ Order placed! Order ID: " + (json?.order?.orderId || ""));
+      closeCheckout();
+      closeCart();
       cart = [];
       saveCart();
-      renderCart();
+      await openOrders();
+    }catch(e){
+      msgEl.textContent = e.message;
     }
+  }
 
-    function openCart(){
-      document.getElementById("cartDrawer").classList.remove("hidden");
-      renderCart();
-    }
-    function closeCart(){
-      document.getElementById("cartDrawer").classList.add("hidden");
-    }
+  // AUTH
+  function openAuth(){
+    document.getElementById("authModal").classList.remove("hidden");
+    switchToLogin();
+  }
+  function closeAuth(){ document.getElementById("authModal").classList.add("hidden"); }
 
-    function renderCart(){
-      const box = document.getElementById("cartItems");
-      if(cart.length === 0){
-        box.innerHTML = `<div style="padding:1rem;color:#636e72;border:1px solid #eee;border-radius:14px;margin-top:1rem;">Your cart is empty.</div>`;
-        document.getElementById("cartSubtotal").textContent = "0 ETB";
+  function switchToRegister(){
+    document.getElementById("authTitle").textContent = "Create Account";
+    document.getElementById("authSubtitle").textContent = "Register to track your orders anytime.";
+    document.getElementById("authFormLogin").classList.add("hidden");
+    document.getElementById("authFormRegister").classList.remove("hidden");
+    document.getElementById("authMsg").textContent = "";
+    document.getElementById("authMsg2").textContent = "";
+  }
+
+  function switchToLogin(){
+    document.getElementById("authTitle").textContent = "Login";
+    document.getElementById("authSubtitle").textContent = "Login to see your orders and checkout faster.";
+    document.getElementById("authFormRegister").classList.add("hidden");
+    document.getElementById("authFormLogin").classList.remove("hidden");
+    document.getElementById("authMsg").textContent = "";
+    document.getElementById("authMsg2").textContent = "";
+  }
+
+  function setAuthLabel(){
+    document.getElementById("authLabel").textContent = getToken() ? "Account" : "Login";
+  }
+
+  function openAccountMenu(){
+    if(!getToken()){
+      openAuth();
+      return;
+    }
+    const choice = prompt("Type: 1 = My Orders, 2 = Logout");
+    if(choice === "1") openOrders();
+    if(choice === "2"){ clearToken(); setAuthLabel(); alert("Logged out."); }
+  }
+
+  async function doRegister(){
+    const msg = document.getElementById("authMsg2");
+    msg.textContent = "";
+    const fullName = document.getElementById("regFullName").value.trim();
+    const email = document.getElementById("regEmail").value.trim();
+    const password = document.getElementById("regPassword").value;
+
+    try{
+      const res = await fetch(API_BASE + "/api/auth/register", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ fullName, email, password })
+      });
+      const { text, json } = await readJsonSafe(res);
+      if(!res.ok) throw new Error(json?.error || json?.details || text || "Register failed");
+      setToken(json.token);
+      setAuthLabel();
+      closeAuth();
+      alert("✅ Account created! You are logged in.");
+    }catch(e){ msg.textContent = e.message; }
+  }
+
+  async function doLogin(){
+    const msg = document.getElementById("authMsg");
+    msg.textContent = "";
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+
+    try{
+      const res = await fetch(API_BASE + "/api/auth/login", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ email, password })
+      });
+      const { text, json } = await readJsonSafe(res);
+      if(!res.ok) throw new Error(json?.error || json?.details || text || "Login failed");
+      setToken(json.token);
+      setAuthLabel();
+      closeAuth();
+      alert("✅ Logged in!");
+    }catch(e){ msg.textContent = e.message; }
+  }
+
+  async function loadMyOrders(){
+    const box = document.getElementById("ordersList");
+    box.innerHTML = `<div style="padding:1rem;color:#636e72;border:1px solid #eee;border-radius:14px;">Loading...</div>`;
+
+    try{
+      const res = await fetch(API_BASE + "/api/orders/my", {
+        headers: { "Authorization": "Bearer " + getToken() }
+      });
+      const { text, json } = await readJsonSafe(res);
+      if(!res.ok) throw new Error(json?.error || json?.details || text || "Failed to load orders");
+
+      const orders = Array.isArray(json) ? json : [];
+      if(orders.length === 0){
+        box.innerHTML = `<div style="padding:1rem;color:#636e72;border:1px solid #eee;border-radius:14px;">No orders yet.</div>`;
         return;
       }
 
-      box.innerHTML = cart.map(it => `
-        <div class="cart-item">
-          <div class="cart-thumb"><img src="${it.image || ''}" onerror="this.style.display='none'"></div>
-          <div style="flex:1;">
-            <div style="font-weight:1000;">${escapeHtml(it.name || "")}</div>
-            <div style="color:#e74c3c;font-weight:1000;margin-top:0.2rem;">${formatMoney(it.price)} ETB</div>
-            <div class="qty">
-              <button onclick="changeQty('${String(it.productId).replaceAll("'","")}', -1)">-</button>
-              <span>${Number(it.qty)||1}</span>
-              <button onclick="changeQty('${String(it.productId).replaceAll("'","")}', 1)">+</button>
+      box.innerHTML = orders.map(o => {
+        const itemsHtml = (o.items || []).map(it => `
+          <div style="display:flex;gap:0.75rem;align-items:center;padding:0.5rem 0;border-bottom:1px solid #f3f3f3;">
+            <div style="flex:1;">
+              <div style="font-weight:1000;">${escapeHtml(it.name || "")}</div>
+              <div style="color:#636e72;font-weight:900;font-size:0.95rem;">Qty: ${Number(it.qty)||1} • ${formatMoney(it.price)} ETB</div>
             </div>
           </div>
-          <div class="remove-x" title="Remove" onclick="removeFromCart('${String(it.productId).replaceAll("'","")}')">✕</div>
-        </div>
-      `).join("");
+        `).join("");
 
-      document.getElementById("cartSubtotal").textContent = `${formatMoney(cartSubtotal())} ETB`;
-    }
-
-    function openCheckout(){
-      if(cart.length === 0) return alert("Cart is empty");
-      if(!getToken()){
-        alert("Please login first to checkout.");
-        openAuth();
-        return;
-      }
-      document.getElementById("checkoutMsg").textContent = "";
-      document.getElementById("ckTotal").value = formatMoney(cartSubtotal()) + " ETB";
-      renderPaymentFields();
-      document.getElementById("checkoutModal").classList.remove("hidden");
-    }
-    function closeCheckout(){ document.getElementById("checkoutModal").classList.add("hidden"); }
-
-    function renderPaymentFields(){
-      const method = document.getElementById("ckPaymentMethod").value;
-      document.getElementById("telebirrFields").classList.toggle("hidden", method !== "telebirr");
-      document.getElementById("cardFields").classList.toggle("hidden", method !== "card");
-    }
-
-    async function placeOrder(){
-      const msgEl = document.getElementById("checkoutMsg");
-      msgEl.textContent = "";
-
-      const fullName = document.getElementById("ckFullName").value.trim();
-      const phone = document.getElementById("ckPhone").value.trim();
-      const email = document.getElementById("ckEmail").value.trim();
-      const address = document.getElementById("ckAddress").value.trim();
-      const city = document.getElementById("ckCity").value.trim();
-      const country = document.getElementById("ckCountry").value.trim();
-      const notes = document.getElementById("ckNotes").value.trim();
-      const paymentMethod = document.getElementById("ckPaymentMethod").value;
-      const telebirrRef = document.getElementById("ckTelebirrRef").value.trim();
-      const proofFile = document.getElementById("ckProof").files[0];
-
-      if(!fullName) return msgEl.textContent = "Full name is required";
-      if(!phone) return msgEl.textContent = "Phone is required";
-      if(!address) return msgEl.textContent = "Address is required";
-
-      const fd = new FormData();
-      fd.append("items", JSON.stringify(cart.map(it => ({
-        productId: it.productId, name: it.name, price: it.price, qty: it.qty, image: it.image
-      }))));
-      fd.append("fullName", fullName);
-      fd.append("phone", phone);
-      fd.append("email", email);
-      fd.append("address", address);
-      fd.append("city", city);
-      fd.append("country", country);
-      fd.append("notes", notes);
-      fd.append("paymentMethod", paymentMethod);
-      fd.append("telebirrRef", telebirrRef);
-      if(proofFile) fd.append("paymentProof", proofFile);
-
-      try{
-        const res = await fetch(API_BASE + "/api/orders", {
-          method: "POST",
-          headers: { "Authorization": "Bearer " + getToken() },
-          body: fd
-        });
-
-        const { text, json } = await readJsonSafe(res);
-        if(!res.ok){
-          alert(`ORDER FAILED\nStatus: ${res.status}\n${text}`);
-          throw new Error(json?.error || json?.details || text || "Order failed");
-        }
-
-        alert("✅ Order placed! Order ID: " + (json?.order?.orderId || ""));
-        closeCheckout();
-        closeCart();
-        cart = [];
-        saveCart();
-        await openOrders();
-      }catch(e){
-        msgEl.textContent = e.message;
-      }
-    }
-
-    // AUTH
-    function openAuth(){ document.getElementById("authModal").classList.remove("hidden"); switchToLogin(); }
-    function closeAuth(){ document.getElementById("authModal").classList.add("hidden"); }
-
-    function switchToRegister(){
-      document.getElementById("authTitle").textContent = "Create Account";
-      document.getElementById("authSubtitle").textContent = "Register to track your orders anytime.";
-      document.getElementById("authFormLogin").classList.add("hidden");
-      document.getElementById("authFormRegister").classList.remove("hidden");
-      document.getElementById("authMsg").textContent = "";
-      document.getElementById("authMsg2").textContent = "";
-    }
-    function switchToLogin(){
-      document.getElementById("authTitle").textContent = "Login";
-      document.getElementById("authSubtitle").textContent = "Login to see your orders and checkout faster.";
-      document.getElementById("authFormRegister").classList.add("hidden");
-      document.getElementById("authFormLogin").classList.remove("hidden");
-      document.getElementById("authMsg").textContent = "";
-      document.getElementById("authMsg2").textContent = "";
-    }
-
-    function setAuthLabel(){ document.getElementById("authLabel").textContent = getToken() ? "Account" : "Login"; }
-
-    function openAccountMenu(){
-      if(!getToken()){ openAuth(); return; }
-      const choice = prompt("Type: 1 = My Orders, 2 = Logout");
-      if(choice === "1") openOrders();
-      if(choice === "2"){ clearToken(); setAuthLabel(); alert("Logged out."); }
-    }
-
-    async function doRegister(){
-      const msg = document.getElementById("authMsg2");
-      msg.textContent = "";
-      const fullName = document.getElementById("regFullName").value.trim();
-      const email = document.getElementById("regEmail").value.trim();
-      const password = document.getElementById("regPassword").value;
-
-      try{
-        const res = await fetch(API_BASE + "/api/auth/register", {
-          method:"POST",
-          headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify({ fullName, email, password })
-        });
-        const { text, json } = await readJsonSafe(res);
-        if(!res.ok) throw new Error(json?.error || json?.details || text || "Register failed");
-        setToken(json.token);
-        setAuthLabel();
-        closeAuth();
-        alert("✅ Account created! You are logged in.");
-      }catch(e){ msg.textContent = e.message; }
-    }
-
-    async function doLogin(){
-      const msg = document.getElementById("authMsg");
-      msg.textContent = "";
-      const email = document.getElementById("loginEmail").value.trim();
-      const password = document.getElementById("loginPassword").value;
-
-      try{
-        const res = await fetch(API_BASE + "/api/auth/login", {
-          method:"POST",
-          headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify({ email, password })
-        });
-        const { text, json } = await readJsonSafe(res);
-        if(!res.ok) throw new Error(json?.error || json?.details || text || "Login failed");
-        setToken(json.token);
-        setAuthLabel();
-        closeAuth();
-        alert("✅ Logged in!");
-      }catch(e){ msg.textContent = e.message; }
-    }
-
-    async function loadMyOrders(){
-      const box = document.getElementById("ordersList");
-      box.innerHTML = `<div style="padding:1rem;color:#636e72;border:1px solid #eee;border-radius:14px;">Loading...</div>`;
-
-      try{
-        const res = await fetch(API_BASE + "/api/orders/my", {
-          headers: { "Authorization": "Bearer " + getToken() }
-        });
-        const { text, json } = await readJsonSafe(res);
-        if(!res.ok) throw new Error(json?.error || json?.details || text || "Failed to load orders");
-
-        const orders = Array.isArray(json) ? json : [];
-        if(orders.length === 0){
-          box.innerHTML = `<div style="padding:1rem;color:#636e72;border:1px solid #eee;border-radius:14px;">No orders yet.</div>`;
-          return;
-        }
-
-        box.innerHTML = orders.map(o => `
+        return `
           <div style="border:1px solid #eee;border-radius:16px;padding:1rem;margin-bottom:1rem;">
             <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
               <div>
@@ -834,181 +857,265 @@
               </div>
               <div style="font-weight:1000;color:#e74c3c;font-size:1.05rem;">${formatMoney(o.total)} ETB</div>
             </div>
+
+            <div style="margin-top:0.75rem;">${itemsHtml}</div>
+
             <div style="margin-top:0.75rem;color:#636e72;font-weight:900;font-size:0.95rem;">
               Placed: ${new Date(o.createdAt).toLocaleString()}
             </div>
           </div>
-        `).join("");
-      }catch(e){
-        box.innerHTML = `<div style="padding:1rem;color:#e74c3c;border:1px solid #eee;border-radius:14px;">${escapeHtml(e.message)}</div>`;
-      }
+        `;
+      }).join("");
+    }catch(e){
+      box.innerHTML = `<div style="padding:1rem;color:#e74c3c;border:1px solid #eee;border-radius:14px;">${escapeHtml(e.message)}</div>`;
     }
+  }
 
-    // ADMIN
-    function setAdminKey() {
-      const k = prompt("Enter ADMIN_API_KEY:");
-      if (!k) return;
-      localStorage.setItem(ADMIN_KEY_STORAGE, k.trim());
-      alert("Admin key saved on this browser.");
-    }
-    function logoutAdmin() {
-      localStorage.removeItem(ADMIN_KEY_STORAGE);
-      alert("Admin key removed.");
-    }
+  // ADMIN
+  function setAdminKey() {
+    const k = prompt("Enter ADMIN_API_KEY:");
+    if (!k) return;
+    localStorage.setItem(ADMIN_KEY_STORAGE, k.trim());
+    alert("Admin key saved on this browser.");
+  }
+  function logoutAdmin() {
+    localStorage.removeItem(ADMIN_KEY_STORAGE);
+    alert("Admin key removed.");
+  }
 
-    async function testAdminKey(){
-      const k = getAdminKey();
-      if (!k) return alert("Admin key not set. Click 'Set Admin Key' first.");
-      try{
-        const fd = new FormData();
-        fd.append("name", "TEST");
-        fd.append("category", "beans");
-        fd.append("size", "single");
-        fd.append("price", "1");
-
-        const res = await fetch(API_BASE + "/api/coffee", {
-          method: "POST",
-          headers: { "x-admin-key": k },
-          body: fd
-        });
-
-        const { text, json } = await readJsonSafe(res);
-        if (res.status === 401) return alert("❌ Unauthorized. Admin key is wrong.");
-        if (res.status === 400 && (json?.error || "").toLowerCase().includes("image")) {
-          return alert("✅ Admin key is correct (auth passed).");
-        }
-        alert("Response: " + res.status + "\n" + text);
-      }catch(e){
-        alert("Test error: " + e.message);
-      }
-    }
-
-    function renderProductList(){
-      const list = document.getElementById("productList");
-      if (!products.length) {
-        list.innerHTML = '<p style="color:#636e72;padding:1rem;">No items yet.</p>';
-        return;
-      }
-
-      list.innerHTML = products.map(p => `
-        <div class="product-item">
-          <div class="product-item-image">
-            <img src="${normalizeImageUrl(p.image)}" alt="${escapeHtml(p.name || '')}" onerror="this.style.display='none'">
-          </div>
-          <div class="product-item-details">
-            <h3>${escapeHtml(p.name || '')}</h3>
-            <p><b>Category:</b> ${escapeHtml(p.category || '')} | <b>Size:</b> ${escapeHtml(p.size || '')}</p>
-            <p><b>Price:</b> ${formatMoney(p.price)} ETB</p>
-          </div>
-          <div class="product-actions">
-            <button class="btn-ghost" onclick="alert('Edit/Delete can be added same as before')">Edit</button>
-            <button class="btn-danger" onclick="deleteProduct('${String(p.id).replaceAll("'","")}')">Delete</button>
-          </div>
-        </div>
-      `).join("");
-    }
-
-    async function deleteProduct(id){
-      if (!confirm("Delete this item?")) return;
-
-      const adminKey = getAdminKey();
-      if (!adminKey) return alert("Admin key not set. Click 'Set Admin Key' first.");
-
-      try{
-        const res = await fetch(API_BASE + "/api/coffee/" + encodeURIComponent(id), {
-          method: "DELETE",
-          headers: { "x-admin-key": adminKey }
-        });
-
-        const { text, json } = await readJsonSafe(res);
-        if (!res.ok) throw new Error(json?.error || json?.details || text || "Delete failed");
-
-        alert("Deleted!");
-        await loadProducts();
-      }catch(e){
-        alert("Delete error: " + e.message);
-      }
-    }
-
-    async function addProduct(formEl){
-      const adminKey = getAdminKey();
-      if (!adminKey) return alert("Admin key not set. Click 'Set Admin Key' first.");
-
-      const file = document.getElementById("imageInput").files[0];
-      if (!file) return alert("Please select an image file.");
-      if (file.size > 2 * 1024 * 1024) return alert("Image too large. Please use under 2MB.");
-
+  async function testAdminKey(){
+    const k = getAdminKey();
+    if (!k) return alert("Admin key not set. Click 'Set Admin Key' first.");
+    try{
       const fd = new FormData();
-      fd.append("image", file);
-      fd.append("name", document.getElementById("productName").value.trim());
-      fd.append("description", document.getElementById("productDescription").value.trim());
-      fd.append("category", document.getElementById("productCategory").value);
-      fd.append("size", document.getElementById("productSize").value);
-      fd.append("price", document.getElementById("productPrice").value);
+      fd.append("name", "TEST");
+      fd.append("category", "beans");
+      fd.append("size", "single");
+      fd.append("price", "1");
 
-      const btn = document.getElementById("addBtn");
-      btn.disabled = true;
-      btn.textContent = "Uploading...";
-      setStatus("Uploading image + saving coffee...");
+      const res = await fetch(API_BASE + "/api/coffee", {
+        method: "POST",
+        headers: { "x-admin-key": k },
+        body: fd
+      });
 
-      try{
-        const res = await fetch(API_BASE + "/api/coffee", {
-          method: "POST",
-          headers: { "x-admin-key": adminKey },
-          body: fd
-        });
-
-        const { text, json } = await readJsonSafe(res);
-        if (!res.ok) throw new Error(json?.error || json?.details || text || "Failed to add item");
-
-        alert("Coffee item added!");
-        setStatus("Saved ✅");
-
-        formEl.reset();
-        document.getElementById("imagePreview").classList.add("hidden");
-
-        await loadProducts();
-      }catch(e){
-        setStatus("Error: " + e.message, true);
-        alert("Add error: " + e.message);
-      }finally{
-        btn.disabled = false;
-        btn.textContent = "Add Item";
+      const { text, json } = await readJsonSafe(res);
+      if (res.status === 401) return alert("❌ Unauthorized. Admin key is wrong.");
+      if (res.status === 400 && (json?.error || "").toLowerCase().includes("image")) {
+        return alert("✅ Admin key is correct (auth passed).");
       }
+      alert("Response: " + res.status + "\n" + text);
+    }catch(e){
+      alert("Test error: " + e.message);
+    }
+  }
+
+  function renderProductList(){
+    const list = document.getElementById("productList");
+    if (!products.length) {
+      list.innerHTML = '<p style="color:#636e72;padding:1rem;">No items yet.</p>';
+      return;
     }
 
-    // Minimal auth modal skeleton to avoid errors (if you removed it)
-    // If you already have your auth modal HTML, keep it.
-    // For now, prevent crashes:
-    window.openAuth = window.openAuth || function(){ alert("Auth modal missing in this shortened file."); };
-    window.closeAuth = window.closeAuth || function(){};
+    list.innerHTML = products.map(p => `
+      <div class="product-item">
+        <div class="product-item-image">
+          <img src="${p.image || ''}" alt="${escapeHtml(p.name || '')}" onerror="this.style.display='none'">
+        </div>
+        <div class="product-item-details">
+          <h3>${escapeHtml(p.name || '')}</h3>
+          <p><b>Category:</b> ${escapeHtml(p.category || '')} | <b>Size:</b> ${escapeHtml(p.size || '')}</p>
+          <p><b>Price:</b> ${formatMoney(p.price)} ETB</p>
+        </div>
+        <div class="product-actions">
+          <button class="btn-ghost" onclick="openEditProduct('${String(p.id).replaceAll("'","")}')">Edit</button>
+          <button class="btn-danger" onclick="deleteProduct('${String(p.id).replaceAll("'","")}')">Delete</button>
+        </div>
+      </div>
+    `).join("");
+  }
 
-    document.addEventListener("DOMContentLoaded", () => {
-      const yy = document.getElementById("yy");
-      if (yy) yy.textContent = new Date().getFullYear();
+  function openEditProduct(id){
+    const p = products.find(x => String(x.id) === String(id));
+    if(!p) return alert("Item not found");
 
-      document.getElementById("imageInput").addEventListener("change", (e) => {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
+    document.getElementById("editMsg").textContent = "";
+    document.getElementById("editId").value = p.id;
+    document.getElementById("editName").value = p.name || "";
+    document.getElementById("editPrice").value = Number(p.price) || 0;
+    document.getElementById("editDescription").value = p.description || "";
+    document.getElementById("editCategory").value = p.category || "beans";
+    document.getElementById("editSize").value = p.size || "single";
 
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const img = document.getElementById("imagePreview");
-          img.src = ev.target.result;
-          img.classList.remove("hidden");
-        };
-        reader.readAsDataURL(file);
+    const prev = document.getElementById("editPreview");
+    if(p.image){
+      prev.src = p.image;
+      prev.style.display = "block";
+    } else {
+      prev.style.display = "none";
+    }
+
+    document.getElementById("editImage").value = "";
+    document.getElementById("editModal").classList.remove("hidden");
+  }
+
+  function closeEditModal(){ document.getElementById("editModal").classList.add("hidden"); }
+
+  async function saveEditProduct(){
+    const adminKey = getAdminKey();
+    if(!adminKey) return alert("Admin key not set. Click 'Set Admin Key' first.");
+
+    const id = document.getElementById("editId").value;
+    const name = document.getElementById("editName").value.trim();
+    const price = document.getElementById("editPrice").value;
+    const description = document.getElementById("editDescription").value.trim();
+    const category = document.getElementById("editCategory").value;
+    const size = document.getElementById("editSize").value;
+    const file = document.getElementById("editImage").files[0];
+
+    const msg = document.getElementById("editMsg");
+    msg.textContent = "";
+
+    if(!name) return msg.textContent = "Name is required";
+    if(!price) return msg.textContent = "Price is required";
+    if(file && file.size > 2 * 1024 * 1024) return msg.textContent = "Image too large (max 2MB)";
+
+    const fd = new FormData();
+    fd.append("name", name);
+    fd.append("price", price);
+    fd.append("description", description);
+    fd.append("category", category);
+    fd.append("size", size);
+    if(file) fd.append("image", file);
+
+    try{
+      const res = await fetch(API_BASE + "/api/coffee/" + encodeURIComponent(id), {
+        method: "PUT",
+        headers: { "x-admin-key": adminKey },
+        body: fd
       });
 
-      document.getElementById("productForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        await addProduct(e.target);
+      const { text, json } = await readJsonSafe(res);
+      if(!res.ok) throw new Error(json?.error || json?.details || text || "Update failed");
+
+      alert("✅ Updated!");
+      closeEditModal();
+      await loadProducts();
+    }catch(e){
+      msg.textContent = e.message;
+    }
+  }
+
+  document.addEventListener("change", (e) => {
+    if(e.target && e.target.id === "editImage"){
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const prev = document.getElementById("editPreview");
+        prev.src = ev.target.result;
+        prev.style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  async function deleteProduct(id){
+    if (!confirm("Delete this item?")) return;
+
+    const adminKey = getAdminKey();
+    if (!adminKey) return alert("Admin key not set. Click 'Set Admin Key' first.");
+
+    try{
+      const res = await fetch(API_BASE + "/api/coffee/" + encodeURIComponent(id), {
+        method: "DELETE",
+        headers: { "x-admin-key": adminKey }
       });
 
-      updateCartCount();
-      setAuthLabel();
-      loadProducts();
+      const { text, json } = await readJsonSafe(res);
+      if (!res.ok) throw new Error(json?.error || json?.details || text || "Delete failed");
+
+      alert("Deleted!");
+      await loadProducts();
+    }catch(e){
+      alert("Delete error: " + e.message);
+    }
+  }
+
+  async function addProduct(formEl){
+    const adminKey = getAdminKey();
+    if (!adminKey) return alert("Admin key not set. Click 'Set Admin Key' first.");
+
+    const file = document.getElementById("imageInput").files[0];
+    if (!file) return alert("Please select an image file.");
+    if (file.size > 2 * 1024 * 1024) return alert("Image too large. Please use an image under 2MB.");
+
+    const fd = new FormData();
+    fd.append("image", file);
+    fd.append("name", document.getElementById("productName").value.trim());
+    fd.append("description", document.getElementById("productDescription").value.trim());
+    fd.append("category", document.getElementById("productCategory").value);
+    fd.append("size", document.getElementById("productSize").value);
+    fd.append("price", document.getElementById("productPrice").value);
+
+    const btn = document.getElementById("addBtn");
+    btn.disabled = true;
+    btn.textContent = "Uploading...";
+    setStatus("Uploading image + saving coffee...");
+
+    try{
+      const res = await fetch(API_BASE + "/api/coffee", {
+        method: "POST",
+        headers: { "x-admin-key": adminKey },
+        body: fd
+      });
+
+      const { text, json } = await readJsonSafe(res);
+      if (!res.ok) throw new Error(json?.error || json?.details || text || "Failed to add item");
+
+      alert("Coffee item added!");
+      setStatus("Saved ✅");
+
+      formEl.reset();
+      document.getElementById("imagePreview").classList.add("hidden");
+
+      await loadProducts();
+    }catch(e){
+      setStatus("Error: " + e.message, true);
+      alert("Add error: " + e.message);
+    }finally{
+      btn.disabled = false;
+      btn.textContent = "Add Item";
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const yy = document.getElementById("yy");
+    if (yy) yy.textContent = new Date().getFullYear();
+
+    document.getElementById("imageInput").addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = document.getElementById("imagePreview");
+        img.src = ev.target.result;
+        img.classList.remove("hidden");
+      };
+      reader.readAsDataURL(file);
     });
-  </script>
+
+    document.getElementById("productForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      await addProduct(e.target);
+    });
+
+    updateCartCount();
+    setAuthLabel();
+    loadProducts();
+  });
+</script>
+
 </body>
 </html>

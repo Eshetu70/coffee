@@ -1,8 +1,9 @@
 /**
- * server.js (Yordi Coffee)
+ * coffee/server.js (Yordi Coffee)
  * DB: Yordi_Coffee
  * Collection: coffee
  *
+ * Install:
  * npm i express cors mongoose multer bcryptjs jsonwebtoken nodemailer dotenv
  */
 
@@ -20,8 +21,23 @@ const nodemailer = require("nodemailer");
 
 const app = express();
 
-// IMPORTANT for Render / proxies
-app.set("trust proxy", 1);
+// ---------- BASIC ----------
+const corsOptions = {
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-admin-key"],
+};
+
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
+
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// ---------- UPLOADS ----------
+const UPLOAD_DIR = path.join(__dirname, "uploads");
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+app.use("/uploads", express.static(UPLOAD_DIR));
 
 // ---------- ENV ----------
 const {
@@ -40,37 +56,16 @@ const {
 
 if (!MONGODB_URI) {
   console.error("❌ Missing MONGODB_URI in .env");
-  process.exit(1);
 }
 if (!JWT_SECRET) {
   console.error("❌ Missing JWT_SECRET in .env");
-  process.exit(1);
 }
 
-// ---------- BASIC ----------
-app.use(
-  cors({
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "x-admin-key"],
-  })
-);
-
-// Express 5 safe OPTIONS
-app.options(/.*/, cors());
-
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-
-// ---------- UPLOADS ----------
-const UPLOAD_DIR = path.join(__dirname, "uploads");
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-app.use("/uploads", express.static(UPLOAD_DIR));
+// Disable mongoose buffering so we don't get "buffering timed out"
+mongoose.set("bufferCommands", false);
 
 // ---------- HELPERS ----------
 function publicBaseUrl(req) {
-  // If you set PUBLIC_BASE_URL on Render, it will be used.
-  // Otherwise auto-detect.
   return PUBLIC_BASE_URL || `${req.protocol}://${req.get("host")}`;
 }
 
@@ -106,15 +101,30 @@ function auth(req, res, next) {
   }
 }
 
-// ---------- MONGO ----------
-mongoose
-  .connect(MONGODB_URI)
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => {
-    console.error("❌ MongoDB error:", err.message);
-    // keep process exit (so you notice in logs)
-    process.exit(1);
-  });
+function requireMongo(req, res, next) {
+  // 1 = connected
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      error: "MongoDB not connected",
+      mongoReadyState: mongoose.connection.readyState, // 0,1,2,3
+    });
+  }
+  next();
+}
+
+// ---------- MONGO CONNECT ----------
+async function connectMongo() {
+  try {
+    if (!MONGODB_URI) return;
+    await mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 8000,
+    });
+    console.log("✅ MongoDB connected");
+  } catch (err) {
+    console.error("❌ MongoDB connect failed:", err.message);
+    console.log("👉 Atlas fix: Security → Network Access → add 0.0.0.0/0 (for testing)");
+  }
+}
 
 // ---------- MODELS ----------
 const userSchema = new mongoose.Schema(
@@ -127,6 +137,7 @@ const userSchema = new mongoose.Schema(
 );
 const User = mongoose.model("User", userSchema);
 
+// Force exact collection name "coffee"
 const coffeeSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -134,8 +145,7 @@ const coffeeSchema = new mongoose.Schema(
     category: { type: String, required: true, trim: true },
     size: { type: String, required: true, trim: true },
     price: { type: Number, required: true },
-    // store as RELATIVE so it works anywhere
-    image: { type: String, default: "" }, // e.g. /uploads/xxx.jpg
+    image: { type: String, default: "" },
   },
   { timestamps: true }
 );
@@ -172,7 +182,7 @@ const orderSchema = new mongoose.Schema(
       method: { type: String, enum: ["cash", "card", "telebirr"], required: true },
       status: { type: String, enum: ["pending", "paid"], default: "pending" },
       telebirrRef: { type: String, default: "" },
-      proofUrl: { type: String, default: "" }, // relative /uploads/...
+      proofUrl: { type: String, default: "" },
     },
 
     status: { type: String, enum: ["placed", "processing", "delivered", "cancelled"], default: "placed" },
@@ -180,39 +190,6 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 const Order = mongoose.model("Order", orderSchema);
-
-// ---------- MULTER (COFFEE IMAGE) ----------
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const safe = (file.originalname || "image").replace(/[^\w.\-]+/g, "_");
-    cb(null, Date.now() + "_" + safe);
-  },
-});
-
-const uploadCoffeeImage = multer({
-  storage,
-  limits: { fileSize: 2 * 1024 * 1024 },
-}).single("image");
-
-const uploadCoffeeEdit = multer({
-  storage,
-  limits: { fileSize: 2 * 1024 * 1024 },
-}).single("image");
-
-// ---------- MULTER (ORDER PROOF) ----------
-const proofStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const safe = (file.originalname || "proof").replace(/[^\w.\-]+/g, "_");
-    cb(null, Date.now() + "_proof_" + safe);
-  },
-});
-
-const uploadOrder = multer({
-  storage: proofStorage,
-  limits: { fileSize: 3 * 1024 * 1024, fieldSize: 20 * 1024 * 1024, fields: 200 },
-}).single("paymentProof");
 
 // ---------- EMAIL (OPTIONAL) ----------
 function getMailer() {
@@ -266,15 +243,51 @@ ${items}
   }
 }
 
-// ---------- ROUTES ----------
-app.get("/", (req, res) => res.json({ ok: true, app: "Yordi Coffee" }));
-app.get("/api/version", (req, res) => res.json({ version: "2025-12-29-yordi-coffee" }));
-
-// ✅ Health route (use this to test backend quickly)
-app.get("/api/health", async (req, res) => {
-  const mongoState = mongoose.connection.readyState; // 1 = connected
-  res.json({ ok: true, mongoReadyState: mongoState });
+// ---------- MULTER ----------
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename: (req, file, cb) => {
+    const safe = (file.originalname || "image").replace(/[^\w.\-]+/g, "_");
+    cb(null, Date.now() + "_" + safe);
+  },
 });
+
+const uploadCoffeeImage = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 },
+}).single("image");
+
+const uploadCoffeeEdit = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 },
+}).single("image");
+
+const proofStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename: (req, file, cb) => {
+    const safe = (file.originalname || "proof").replace(/[^\w.\-]+/g, "_");
+    cb(null, Date.now() + "_proof_" + safe);
+  },
+});
+
+const uploadOrder = multer({
+  storage: proofStorage,
+  limits: { fileSize: 3 * 1024 * 1024, fieldSize: 20 * 1024 * 1024, fields: 200 },
+}).single("paymentProof");
+
+// ---------- ROUTES ----------
+app.get("/", (req, res) => res.json({ ok: true, app: "Yordi Coffee API" }));
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    ok: true,
+    app: "Yordi Coffee API",
+    time: new Date().toISOString(),
+    mongoReadyState: mongoose.connection.readyState, // 0,1,2,3
+  });
+});
+
+app.get("/api/version", (req, res) => res.json({ version: "2025-12-29-yordi-coffee" }));
 
 // AUTH
 app.post("/api/auth/register", async (req, res) => {
@@ -326,8 +339,8 @@ app.get("/api/auth/me", auth, async (req, res) => {
   return res.json({ id: user._id.toString(), fullName: user.fullName, email: user.email });
 });
 
-// COFFEE
-app.get("/api/coffee", async (req, res) => {
+// COFFEE (PRODUCTS)
+app.get("/api/coffee", requireMongo, async (req, res) => {
   try {
     const list = await Coffee.find().sort({ createdAt: -1 }).lean();
     res.json(
@@ -338,8 +351,7 @@ app.get("/api/coffee", async (req, res) => {
         category: p.category,
         size: p.size,
         price: p.price,
-        // if stored as /uploads/xxx.jpg, frontend will prefix API_BASE automatically
-        image: p.image || "",
+        image: p.image,
       }))
     );
   } catch (e) {
@@ -348,7 +360,7 @@ app.get("/api/coffee", async (req, res) => {
 });
 
 // CREATE coffee (image required)
-app.post("/api/coffee", requireAdmin, (req, res) => {
+app.post("/api/coffee", requireAdmin, requireMongo, (req, res) => {
   uploadCoffeeImage(req, res, async (err) => {
     try {
       if (err) return res.status(400).json({ error: "Upload error", details: err.message });
@@ -358,8 +370,7 @@ app.post("/api/coffee", requireAdmin, (req, res) => {
       if (!name || !category || !size || !price)
         return res.status(400).json({ error: "name, category, size, price required" });
 
-      // ✅ store relative path
-      const imgPath = `/uploads/${req.file.filename}`;
+      const imgUrl = `${publicBaseUrl(req)}/uploads/${req.file.filename}`;
 
       const created = await Coffee.create({
         name: String(name).trim(),
@@ -367,7 +378,7 @@ app.post("/api/coffee", requireAdmin, (req, res) => {
         category: String(category).trim(),
         size: String(size).trim(),
         price: Number(price),
-        image: imgPath,
+        image: imgUrl,
       });
 
       res.json({
@@ -386,7 +397,7 @@ app.post("/api/coffee", requireAdmin, (req, res) => {
 });
 
 // EDIT coffee (image optional)
-app.put("/api/coffee/:id", requireAdmin, (req, res) => {
+app.put("/api/coffee/:id", requireAdmin, requireMongo, (req, res) => {
   uploadCoffeeEdit(req, res, async (err) => {
     try {
       if (err) return res.status(400).json({ error: "Upload error", details: err.message });
@@ -403,7 +414,7 @@ app.put("/api/coffee/:id", requireAdmin, (req, res) => {
         price: Number(price),
       };
 
-      if (req.file) update.image = `/uploads/${req.file.filename}`;
+      if (req.file) update.image = `${publicBaseUrl(req)}/uploads/${req.file.filename}`;
 
       const updated = await Coffee.findByIdAndUpdate(req.params.id, update, { new: true });
       if (!updated) return res.status(404).json({ error: "Item not found" });
@@ -423,7 +434,7 @@ app.put("/api/coffee/:id", requireAdmin, (req, res) => {
   });
 });
 
-app.delete("/api/coffee/:id", requireAdmin, async (req, res) => {
+app.delete("/api/coffee/:id", requireAdmin, requireMongo, async (req, res) => {
   try {
     const deleted = await Coffee.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ error: "Item not found" });
@@ -434,7 +445,7 @@ app.delete("/api/coffee/:id", requireAdmin, async (req, res) => {
 });
 
 // ORDERS
-app.post("/api/orders", auth, (req, res) => {
+app.post("/api/orders", auth, requireMongo, (req, res) => {
   uploadOrder(req, res, async (err) => {
     try {
       if (err) return res.status(400).json({ error: "Upload error", details: err.message });
@@ -509,7 +520,7 @@ app.post("/api/orders", auth, (req, res) => {
   });
 });
 
-app.get("/api/orders/my", auth, async (req, res) => {
+app.get("/api/orders/my", auth, requireMongo, async (req, res) => {
   try {
     const userObjectId = new mongoose.Types.ObjectId(req.user.id);
     const orders = await Order.find({ userId: userObjectId }).sort({ createdAt: -1 }).lean();
@@ -529,4 +540,6 @@ app.get("/api/orders/my", auth, async (req, res) => {
 });
 
 // ---------- START ----------
-app.listen(PORT, () => console.log(`✅ Yordi Coffee backend running on port ${PORT}`));
+connectMongo().finally(() => {
+  app.listen(PORT, () => console.log(`✅ Yordi Coffee backend running on port ${PORT}`));
+});
