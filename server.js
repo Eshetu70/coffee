@@ -1,9 +1,8 @@
 /**
  * server.js (Yordi Coffee)
- * ✅ DB NAME: Yordi_Coffee
- * ✅ COLLECTION: coffee
+ * DB: Yordi_Coffee
+ * Collection: coffee
  *
- * Install:
  * npm i express cors mongoose multer bcryptjs jsonwebtoken nodemailer dotenv
  */
 
@@ -21,25 +20,8 @@ const nodemailer = require("nodemailer");
 
 const app = express();
 
-// ---------- BASIC ----------
-const corsOptions = {
-  origin: "*",
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "x-admin-key"],
-};
-
-app.use(cors(corsOptions));
-
-// ✅ FIX for Express 5 / path-to-regexp: don't use app.options("*")
-app.options(/.*/, cors(corsOptions));
-
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-
-// ---------- UPLOADS ----------
-const UPLOAD_DIR = path.join(__dirname, "uploads");
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-app.use("/uploads", express.static(UPLOAD_DIR));
+// IMPORTANT for Render / proxies
+app.set("trust proxy", 1);
 
 // ---------- ENV ----------
 const {
@@ -57,95 +39,38 @@ const {
 } = process.env;
 
 if (!MONGODB_URI) {
-  console.error("❌ Missing MONGODB_URI in environment variables");
+  console.error("❌ Missing MONGODB_URI in .env");
   process.exit(1);
 }
 if (!JWT_SECRET) {
-  console.error("❌ Missing JWT_SECRET in environment variables");
+  console.error("❌ Missing JWT_SECRET in .env");
   process.exit(1);
 }
 
-// ---------- MONGO (UPDATED FIX) ----------
-// ✅ Best: URI already includes /Yordi_Coffee so no dbName needed.
-// If your URI does NOT include /Yordi_Coffee, add dbName: "Yordi_Coffee".
-mongoose
-  .connect(MONGODB_URI, {
-    // dbName: "Yordi_Coffee", // only needed if your URI does not include /Yordi_Coffee
+// ---------- BASIC ----------
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-admin-key"],
   })
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => {
-    console.error("❌ MongoDB error:", err.message);
-    process.exit(1);
-  });
-
-// ---------- MODELS ----------
-const userSchema = new mongoose.Schema(
-  {
-    fullName: { type: String, required: true, trim: true },
-    email: { type: String, required: true, trim: true, lowercase: true, unique: true },
-    passwordHash: { type: String, required: true },
-  },
-  { timestamps: true }
 );
-const User = mongoose.model("User", userSchema);
 
-// ✅ COLLECTION name EXACT: "coffee"
-const coffeeSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true, trim: true },
-    description: { type: String, default: "" },
-    category: { type: String, required: true, trim: true }, // beans, ground, espresso, traditional, accessories
-    size: { type: String, required: true, trim: true },     // 250g, 500g, 1kg, single
-    price: { type: Number, required: true },
-    image: { type: String, default: "" },
-  },
-  { timestamps: true }
-);
-// third param forces exact collection name:
-const Coffee = mongoose.model("Coffee", coffeeSchema, "coffee");
+// Express 5 safe OPTIONS
+app.options(/.*/, cors());
 
-const orderSchema = new mongoose.Schema(
-  {
-    orderId: { type: String, required: true, unique: true },
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-    items: [
-      {
-        productId: { type: String, required: true },
-        name: { type: String, required: true },
-        price: { type: Number, required: true },
-        qty: { type: Number, required: true },
-        image: { type: String, default: "" },
-      },
-    ],
-
-    total: { type: Number, required: true },
-
-    customer: {
-      fullName: { type: String, required: true },
-      phone: { type: String, required: true },
-      email: { type: String, default: "" },
-      address: { type: String, required: true },
-      city: { type: String, default: "" },
-      country: { type: String, default: "" },
-      notes: { type: String, default: "" },
-    },
-
-    payment: {
-      method: { type: String, enum: ["cash", "card", "telebirr"], required: true },
-      status: { type: String, enum: ["pending", "paid"], default: "pending" },
-      telebirrRef: { type: String, default: "" },
-      proofUrl: { type: String, default: "" },
-    },
-
-    status: { type: String, enum: ["placed", "processing", "delivered", "cancelled"], default: "placed" },
-  },
-  { timestamps: true }
-);
-const Order = mongoose.model("Order", orderSchema);
+// ---------- UPLOADS ----------
+const UPLOAD_DIR = path.join(__dirname, "uploads");
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+app.use("/uploads", express.static(UPLOAD_DIR));
 
 // ---------- HELPERS ----------
 function publicBaseUrl(req) {
+  // If you set PUBLIC_BASE_URL on Render, it will be used.
+  // Otherwise auto-detect.
   return PUBLIC_BASE_URL || `${req.protocol}://${req.get("host")}`;
 }
 
@@ -180,6 +105,81 @@ function auth(req, res, next) {
     return res.status(401).json({ error: "Invalid token" });
   }
 }
+
+// ---------- MONGO ----------
+mongoose
+  .connect(MONGODB_URI)
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch((err) => {
+    console.error("❌ MongoDB error:", err.message);
+    // keep process exit (so you notice in logs)
+    process.exit(1);
+  });
+
+// ---------- MODELS ----------
+const userSchema = new mongoose.Schema(
+  {
+    fullName: { type: String, required: true, trim: true },
+    email: { type: String, required: true, trim: true, lowercase: true, unique: true },
+    passwordHash: { type: String, required: true },
+  },
+  { timestamps: true }
+);
+const User = mongoose.model("User", userSchema);
+
+const coffeeSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    description: { type: String, default: "" },
+    category: { type: String, required: true, trim: true },
+    size: { type: String, required: true, trim: true },
+    price: { type: Number, required: true },
+    // store as RELATIVE so it works anywhere
+    image: { type: String, default: "" }, // e.g. /uploads/xxx.jpg
+  },
+  { timestamps: true }
+);
+const Coffee = mongoose.model("Coffee", coffeeSchema, "coffee");
+
+const orderSchema = new mongoose.Schema(
+  {
+    orderId: { type: String, required: true, unique: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+
+    items: [
+      {
+        productId: { type: String, required: true },
+        name: { type: String, required: true },
+        price: { type: Number, required: true },
+        qty: { type: Number, required: true },
+        image: { type: String, default: "" },
+      },
+    ],
+
+    total: { type: Number, required: true },
+
+    customer: {
+      fullName: { type: String, required: true },
+      phone: { type: String, required: true },
+      email: { type: String, default: "" },
+      address: { type: String, required: true },
+      city: { type: String, default: "" },
+      country: { type: String, default: "" },
+      notes: { type: String, default: "" },
+    },
+
+    payment: {
+      method: { type: String, enum: ["cash", "card", "telebirr"], required: true },
+      status: { type: String, enum: ["pending", "paid"], default: "pending" },
+      telebirrRef: { type: String, default: "" },
+      proofUrl: { type: String, default: "" }, // relative /uploads/...
+    },
+
+    status: { type: String, enum: ["placed", "processing", "delivered", "cancelled"], default: "placed" },
+  },
+  { timestamps: true }
+);
+const Order = mongoose.model("Order", orderSchema);
 
 // ---------- MULTER (COFFEE IMAGE) ----------
 const storage = multer.diskStorage({
@@ -270,6 +270,12 @@ ${items}
 app.get("/", (req, res) => res.json({ ok: true, app: "Yordi Coffee" }));
 app.get("/api/version", (req, res) => res.json({ version: "2025-12-29-yordi-coffee" }));
 
+// ✅ Health route (use this to test backend quickly)
+app.get("/api/health", async (req, res) => {
+  const mongoState = mongoose.connection.readyState; // 1 = connected
+  res.json({ ok: true, mongoReadyState: mongoState });
+});
+
 // AUTH
 app.post("/api/auth/register", async (req, res) => {
   try {
@@ -320,7 +326,7 @@ app.get("/api/auth/me", auth, async (req, res) => {
   return res.json({ id: user._id.toString(), fullName: user.fullName, email: user.email });
 });
 
-// COFFEE (PRODUCTS)
+// COFFEE
 app.get("/api/coffee", async (req, res) => {
   try {
     const list = await Coffee.find().sort({ createdAt: -1 }).lean();
@@ -332,7 +338,8 @@ app.get("/api/coffee", async (req, res) => {
         category: p.category,
         size: p.size,
         price: p.price,
-        image: p.image,
+        // if stored as /uploads/xxx.jpg, frontend will prefix API_BASE automatically
+        image: p.image || "",
       }))
     );
   } catch (e) {
@@ -351,7 +358,8 @@ app.post("/api/coffee", requireAdmin, (req, res) => {
       if (!name || !category || !size || !price)
         return res.status(400).json({ error: "name, category, size, price required" });
 
-      const imgUrl = `${publicBaseUrl(req)}/uploads/${req.file.filename}`;
+      // ✅ store relative path
+      const imgPath = `/uploads/${req.file.filename}`;
 
       const created = await Coffee.create({
         name: String(name).trim(),
@@ -359,7 +367,7 @@ app.post("/api/coffee", requireAdmin, (req, res) => {
         category: String(category).trim(),
         size: String(size).trim(),
         price: Number(price),
-        image: imgUrl,
+        image: imgPath,
       });
 
       res.json({
@@ -395,7 +403,7 @@ app.put("/api/coffee/:id", requireAdmin, (req, res) => {
         price: Number(price),
       };
 
-      if (req.file) update.image = `${publicBaseUrl(req)}/uploads/${req.file.filename}`;
+      if (req.file) update.image = `/uploads/${req.file.filename}`;
 
       const updated = await Coffee.findByIdAndUpdate(req.params.id, update, { new: true });
       if (!updated) return res.status(404).json({ error: "Item not found" });
