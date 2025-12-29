@@ -27,6 +27,12 @@
       cursor:pointer; user-select:none;
     }
     .pill:hover{ border-color: rgba(255,255,255,0.5); }
+    .cart-count{
+      background:#e74c3c; color:#fff; border-radius:50%;
+      width:20px; height:20px; font-size:0.75rem;
+      display:inline-flex; align-items:center; justify-content:center;
+      margin-left:0.35rem;
+    }
 
     .hero{
       background:
@@ -95,7 +101,7 @@
       padding:1rem; z-index:2000;
     }
     .modal{
-      width:min(560px, 100%);
+      width:min(720px, 100%);
       background:#fff; border-radius:18px;
       box-shadow:0 20px 60px rgba(0,0,0,0.25);
       padding:1.25rem;
@@ -103,6 +109,31 @@
     .modal .muted{ color:#636e72; font-size:0.95rem; margin-bottom:1rem; }
     .modal .actions{ display:flex; gap:0.75rem; flex-wrap:wrap; margin-top:1rem; }
     .hr{ height:1px; background:#eee; margin:1rem 0; }
+
+    /* Cart Drawer */
+    .drawer-backdrop{ position:fixed; inset:0; background: rgba(0,0,0,0.45); z-index:2500; display:flex; justify-content:flex-end; }
+    .drawer{ width:min(420px, 100%); height:100%; background:#fff; padding:1rem; overflow:auto; box-shadow:-20px 0 60px rgba(0,0,0,0.2); }
+    .cart-item{ display:flex; gap:0.75rem; padding:0.85rem 0; border-bottom:1px solid #eee; align-items:center; position:relative; }
+    .cart-thumb{ width:72px; height:72px; border-radius:12px; overflow:hidden; background:#f1f1f1; flex:0 0 auto; }
+    .cart-thumb img{ width:100%; height:100%; object-fit:cover; }
+    .qty{ display:flex; align-items:center; gap:0.5rem; margin-top:0.35rem; }
+    .qty button{ width:34px; height:34px; border-radius:10px; border:1px solid #ddd; background:#fff; font-weight:1000; cursor:pointer; }
+    .qty span{ font-weight:1000; min-width:24px; text-align:center; display:inline-block; }
+    .remove-x{
+      position:absolute; top:10px; right:8px; width:30px; height:30px;
+      border-radius:10px; border:1px solid rgba(231,76,60,0.35);
+      background: rgba(231,76,60,0.08); color:#e74c3c; font-weight:1000;
+      cursor:pointer; display:flex; align-items:center; justify-content:center; user-select:none;
+    }
+
+    .row{ display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    @media (max-width:900px){ .row{ grid-template-columns:1fr; } }
+    label{ font-weight:900; font-size:0.95rem; }
+    input, textarea, select{
+      width:100%; padding:0.85rem; border:2px solid #ddd; border-radius:10px;
+      font-size:1rem; outline:none;
+    }
+    input:focus, textarea:focus, select:focus{ border-color:#8b5a2b; }
 
     .footer{ margin-top:2rem; background:#0b0b0b; color:#fff; padding:2rem 1.5rem; }
     .footer-inner{
@@ -133,6 +164,13 @@
       <ul class="nav-menu">
         <li><a onclick="showShop()">Shop</a></li>
         <li><a onclick="openAdmin()">Admin</a></li>
+
+        <li>
+          <div class="pill" onclick="openCart()">
+            🛒 Cart <span class="cart-count" id="cartCount">0</span>
+          </div>
+        </li>
+
         <li>
           <div class="pill" onclick="reloadAll()">
             🔄 <span>Refresh</span>
@@ -165,12 +203,17 @@
   <div id="adminSection" class="hidden">
     <div class="admin-panel">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
-        <h2 style="margin-bottom: 0.5rem;">Admin (Simple)</h2>
+        <h2 style="margin-bottom: 0.5rem;">Admin</h2>
         <button class="btn-ghost" onclick="showShop()">Back to Shop</button>
       </div>
 
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin:0.75rem 0 1rem;">
+        <button class="btn-primary" onclick="setAdminKey()">Set Admin Key</button>
+        <button class="btn-danger" onclick="clearAdminKey()">Logout Admin</button>
+      </div>
+
       <p style="color:#636e72;margin-bottom:1.25rem;">
-        ✅ This admin uses the same backend endpoints:
+        ✅ Uses backend endpoints:
         <b>GET /api/coffee</b>, <b>POST /api/coffee</b>, <b>PUT /api/coffee/:id</b>, <b>DELETE /api/coffee/:id</b>
       </p>
 
@@ -178,7 +221,7 @@
 
       <form id="productForm">
         <div class="image-upload-area" onclick="document.getElementById('imageInput').click()">
-          <p>📷 Upload Image (optional, max 2MB)</p>
+          <p>📷 Upload Image (required, max 2MB)</p>
           <input type="file" id="imageInput" accept="image/*" style="display:none;">
           <img id="imagePreview" class="image-preview hidden" alt="Preview">
         </div>
@@ -229,7 +272,7 @@
 
       <p class="muted">Update name, category, description, price, and optionally replace image.</p>
 
-      <input id="editMongoId" type="hidden" />
+      <input id="editId" type="hidden" />
 
       <label>Name</label>
       <input id="editName" />
@@ -271,6 +314,81 @@
     </div>
   </div>
 
+  <!-- CART DRAWER -->
+  <div id="cartDrawer" class="drawer-backdrop hidden" onclick="if(event.target.id==='cartDrawer'){closeCart()}">
+    <div class="drawer">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h2>🛒 Cart</h2>
+        <button class="btn btn-dark" style="width:auto;padding:0.5rem 0.75rem;" onclick="closeCart()">✕</button>
+      </div>
+
+      <div id="cartItems"></div>
+
+      <div class="hr"></div>
+      <div style="display:flex;justify-content:space-between;font-weight:1000;">
+        <span>Subtotal</span>
+        <span id="cartSubtotal">0 ETB</span>
+      </div>
+
+      <button class="btn btn-dark" style="width:100%;margin-top:1rem;" onclick="continueShopping()">Continue Shopping</button>
+      <button class="btn-primary" style="width:100%;margin-top:0.6rem;" onclick="openCheckout()">Checkout</button>
+      <button class="btn btn-dark" style="width:100%;margin-top:0.6rem;" onclick="clearCart()">Clear Cart</button>
+    </div>
+  </div>
+
+  <!-- CHECKOUT MODAL -->
+  <div id="checkoutModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h2>✅ Checkout</h2>
+        <button class="btn btn-dark" style="width:auto;padding:0.5rem 0.75rem;border-radius:10px;" onclick="closeCheckout()">✕</button>
+      </div>
+      <p class="muted">Fill your details and place your order.</p>
+
+      <div class="row">
+        <div>
+          <label>Full Name</label>
+          <input id="ckFullName" placeholder="Full name">
+        </div>
+        <div>
+          <label>Phone</label>
+          <input id="ckPhone" placeholder="+251...">
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:0.75rem;">
+        <div>
+          <label>City</label>
+          <input id="ckCity" placeholder="Addis Ababa">
+        </div>
+        <div>
+          <label>Total</label>
+          <input id="ckTotal" disabled>
+        </div>
+      </div>
+
+      <div style="margin-top:0.75rem;">
+        <label>Address</label>
+        <input id="ckAddress" placeholder="Street, building, etc...">
+      </div>
+
+      <div style="margin-top:0.75rem;">
+        <label>Payment Method</label>
+        <select id="ckPaymentMethod">
+          <option value="cash">Cash on Delivery</option>
+          <option value="telebirr">Telebirr</option>
+        </select>
+      </div>
+
+      <div class="actions" style="margin-top:1rem;">
+        <button class="btn-primary" onclick="placeOrder()">Place Order</button>
+        <button class="btn btn-dark" style="width:auto;padding:0.85rem 1rem;" onclick="closeCheckout()">Cancel</button>
+      </div>
+
+      <p id="checkoutMsg" style="margin-top:0.75rem;color:#e74c3c;font-weight:1000;"></p>
+    </div>
+  </div>
+
   <footer class="footer">
     <div class="footer-inner">
       <div>
@@ -297,9 +415,9 @@
   </footer>
 
 <script>
-  // ✅ Local vs deployed
- const BACKEND_URL = "https://coffee-1-5gfb.onrender.com";
- // change when deployed
+  // ✅ Set your deployed backend URL
+  const BACKEND_URL = "https://coffee-1-5gfb.onrender.com";
+
   const API_BASE =
     (location.hostname === "localhost" || location.hostname === "127.0.0.1")
       ? "http://localhost:3000"
@@ -307,9 +425,17 @@
 
   console.log("API_BASE:", API_BASE);
 
+  // ---- state ----
   let products = [];
   let currentFilter = "all";
 
+  let cart = JSON.parse(localStorage.getItem("YORDI_CART") || "[]");
+  const saveCart = () => { localStorage.setItem("YORDI_CART", JSON.stringify(cart)); updateCartCount(); };
+
+  const ADMIN_KEY_STORAGE = "YORDI_ADMIN_KEY";
+  const getAdminKey = () => localStorage.getItem(ADMIN_KEY_STORAGE) || "";
+
+  // ---- utils ----
   function escapeHtml(str){
     return String(str ?? "")
       .replaceAll("&","&amp;")
@@ -326,33 +452,41 @@
     catch { return { text, json: null }; }
   }
 
+  function normalizeProduct(p){
+    // backend should return {id, name, ...}. but if it returns _id, handle it too.
+    const id = p.id || p._id;
+    return { ...p, id };
+  }
+
+  // ---- nav ----
   function showShop(){
     document.getElementById("adminSection").classList.add("hidden");
     document.getElementById("shopSection").scrollIntoView({ behavior:"smooth" });
   }
-
   function openAdmin(){
     document.getElementById("adminSection").classList.remove("hidden");
     document.getElementById("adminSection").scrollIntoView({ behavior:"smooth" });
     renderProductList();
   }
 
+  // ---- status ----
   function setAdminStatus(msg, isError=false){
     const el = document.getElementById("adminStatus");
     el.textContent = msg || "";
     el.style.color = isError ? "#e74c3c" : "#636e72";
   }
 
+  // ---- health ----
   async function checkHealth(){
     const label = document.getElementById("healthLabel");
     try{
       const res = await fetch(API_BASE + "/api/health", { cache:"no-store" });
       const { json } = await readJsonSafe(res);
-      if(res.ok && json && json.mongoState === 1){
-        label.textContent = "✅ Mongo connected";
+      if(res.ok && json && json.ok){
+        label.textContent = "✅ OK";
         label.style.color = "#b6ffb6";
       } else {
-        label.textContent = "⚠️ Mongo not connected";
+        label.textContent = "⚠️ Not OK";
         label.style.color = "#ffd6d6";
       }
     }catch(e){
@@ -361,6 +495,7 @@
     }
   }
 
+  // ---- products ----
   async function loadProducts(){
     const loading = document.getElementById("loadingProducts");
     const url = API_BASE + "/api/coffee";
@@ -376,7 +511,7 @@
         throw new Error(`Backend ${res.status}: ${json?.details || json?.error || text || "Unknown error"}`);
       }
 
-      products = Array.isArray(json) ? json : [];
+      products = (Array.isArray(json) ? json : []).map(normalizeProduct);
       loading.classList.add("hidden");
       renderProducts();
       renderProductList();
@@ -417,24 +552,180 @@
     grid.innerHTML = filtered.map(p => `
       <div class="product-card">
         <div class="product-image">
-          ${p.image ? `<img src="${p.image}" alt="${escapeHtml(p.name || 'Coffee')}" />` : ``}
+          ${p.image ? `<img src="${p.image}" alt="${escapeHtml(p.name || 'Coffee')}" onerror="this.style.display='none'"/>` : ``}
         </div>
         <div class="product-details">
           <div class="product-category">${escapeHtml(p.category || '')}</div>
           <div class="product-name">${escapeHtml(p.name || '')}</div>
           ${p.description ? `<p style="font-size:0.95rem;color:#636e72;margin:0.4rem 0;">${escapeHtml(p.description)}</p>` : ""}
           <div class="product-price">${formatMoney(p.price)} ETB</div>
-          <button class="btn btn-dark" onclick="openEditFromShop('${p._id}')">Edit</button>
+          <button class="btn btn-dark" onclick="addToCart('${String(p.id).replaceAll("'","")}')">Add to Cart</button>
         </div>
       </div>
     `).join("");
   }
 
-  function openEditFromShop(mongoId){
-    openAdmin();
-    openEditProduct(mongoId);
+  // ---- cart ----
+  function updateCartCount(){
+    const count = cart.reduce((s, it) => s + (Number(it.qty)||1), 0);
+    document.getElementById("cartCount").textContent = count;
   }
 
+  function cartSubtotal(){
+    return cart.reduce((s, it) => s + (Number(it.price)||0) * (Number(it.qty)||1), 0);
+  }
+
+  function addToCart(productId){
+    const p = products.find(x => String(x.id) === String(productId));
+    if(!p) return alert("Item not found");
+
+    const existing = cart.find(x => String(x.productId) === String(productId));
+    if(existing){
+      existing.qty = (Number(existing.qty)||1) + 1;
+    }else{
+      cart.push({
+        productId: p.id,
+        name: p.name,
+        price: Number(p.price)||0,
+        qty: 1,
+        image: p.image || ""
+      });
+    }
+    saveCart();
+    openCart();
+  }
+
+  function removeFromCart(productId){
+    cart = cart.filter(x => String(x.productId) !== String(productId));
+    saveCart();
+    renderCart();
+  }
+
+  function changeQty(productId, delta){
+    const it = cart.find(x => String(x.productId) === String(productId));
+    if(!it) return;
+    it.qty = Math.max(1, (Number(it.qty)||1) + delta);
+    saveCart();
+    renderCart();
+  }
+
+  function clearCart(){
+    if(!confirm("Clear cart?")) return;
+    cart = [];
+    saveCart();
+    renderCart();
+  }
+
+  function openCart(){
+    document.getElementById("cartDrawer").classList.remove("hidden");
+    renderCart();
+  }
+  function closeCart(){ document.getElementById("cartDrawer").classList.add("hidden"); }
+  function continueShopping(){ closeCart(); showShop(); }
+
+  function renderCart(){
+    const box = document.getElementById("cartItems");
+    if(cart.length === 0){
+      box.innerHTML = `<div style="padding:1rem;color:#636e72;border:1px solid #eee;border-radius:14px;margin-top:1rem;">Your cart is empty.</div>`;
+      document.getElementById("cartSubtotal").textContent = "0 ETB";
+      return;
+    }
+
+    box.innerHTML = cart.map(it => `
+      <div class="cart-item">
+        <div class="cart-thumb">${it.image ? `<img src="${it.image}" onerror="this.style.display='none'">` : ""}</div>
+        <div style="flex:1;">
+          <div style="font-weight:1000;">${escapeHtml(it.name || "")}</div>
+          <div style="color:#e74c3c;font-weight:1000;margin-top:0.2rem;">${formatMoney(it.price)} ETB</div>
+          <div class="qty">
+            <button onclick="changeQty('${String(it.productId).replaceAll("'","")}', -1)">-</button>
+            <span>${Number(it.qty)||1}</span>
+            <button onclick="changeQty('${String(it.productId).replaceAll("'","")}', 1)">+</button>
+          </div>
+        </div>
+        <div class="remove-x" title="Remove" onclick="removeFromCart('${String(it.productId).replaceAll("'","")}')">✕</div>
+      </div>
+    `).join("");
+
+    document.getElementById("cartSubtotal").textContent = `${formatMoney(cartSubtotal())} ETB`;
+  }
+
+  // ---- checkout ----
+  function openCheckout(){
+    if(cart.length === 0) return alert("Cart is empty");
+    document.getElementById("checkoutMsg").textContent = "";
+    document.getElementById("ckTotal").value = formatMoney(cartSubtotal()) + " ETB";
+    document.getElementById("checkoutModal").classList.remove("hidden");
+  }
+  function closeCheckout(){ document.getElementById("checkoutModal").classList.add("hidden"); }
+
+  async function placeOrder(){
+    const msgEl = document.getElementById("checkoutMsg");
+    msgEl.textContent = "";
+
+    const fullName = document.getElementById("ckFullName").value.trim();
+    const phone = document.getElementById("ckPhone").value.trim();
+    const city = document.getElementById("ckCity").value.trim();
+    const address = document.getElementById("ckAddress").value.trim();
+    const paymentMethod = document.getElementById("ckPaymentMethod").value;
+
+    if(!fullName) return msgEl.textContent = "Full name is required";
+    if(!phone) return msgEl.textContent = "Phone is required";
+    if(!address) return msgEl.textContent = "Address is required";
+
+    const payload = {
+      customer: { fullName, phone, city, address },
+      payment: { method: paymentMethod },
+      items: cart.map(it => ({
+        productId: it.productId,
+        name: it.name,
+        price: it.price,
+        qty: it.qty,
+        image: it.image || ""
+      }))
+    };
+
+    try{
+      const res = await fetch(API_BASE + "/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const { text, json } = await readJsonSafe(res);
+      if(!res.ok) throw new Error(json?.error || json?.details || text || "Order failed");
+
+      alert("✅ Order placed! Order ID: " + (json?.orderId || json?.order?.orderId || ""));
+      closeCheckout();
+      closeCart();
+      cart = [];
+      saveCart();
+    }catch(e){
+      msgEl.textContent = e.message;
+    }
+  }
+
+  // ---- admin helpers ----
+  function setAdminKey(){
+    const k = prompt("Enter ADMIN_API_KEY:");
+    if(!k) return;
+    localStorage.setItem(ADMIN_KEY_STORAGE, k.trim());
+    alert("Admin key saved on this browser.");
+  }
+  function clearAdminKey(){
+    localStorage.removeItem(ADMIN_KEY_STORAGE);
+    alert("Admin logged out (key removed).");
+  }
+
+  function requireAdminKey(){
+    const k = getAdminKey();
+    if(!k){
+      alert("Admin key not set. Click 'Set Admin Key' first.");
+      return null;
+    }
+    return k;
+  }
+
+  // ---- admin list ----
   function renderProductList(){
     const list = document.getElementById("productList");
     if (!products.length) {
@@ -445,60 +736,53 @@
     list.innerHTML = products.map(p => `
       <div class="product-item">
         <div class="product-item-image">
-          ${p.image ? `<img src="${p.image}" alt="${escapeHtml(p.name || '')}">` : ``}
+          ${p.image ? `<img src="${p.image}" alt="${escapeHtml(p.name || '')}" onerror="this.style.display='none'">` : ``}
         </div>
         <div class="product-item-details">
           <h3>${escapeHtml(p.name || '')}</h3>
-          <p><b>Category:</b> ${escapeHtml(p.category || '')}</p>
-          <p><b>Price:</b> ${formatMoney(p.price)} ETB</p>
+          <p style="color:#636e72;"><b>Category:</b> ${escapeHtml(p.category || '')}</p>
+          <p style="color:#636e72;"><b>Price:</b> ${formatMoney(p.price)} ETB</p>
         </div>
         <div class="product-actions">
-          <button class="btn-ghost" onclick="openEditProduct('${p._id}')">Edit</button>
-          <button class="btn-danger" onclick="deleteProduct('${p._id}')">Delete</button>
+          <button class="btn-ghost" onclick="openEditProduct('${String(p.id).replaceAll("'","")}')">Edit</button>
+          <button class="btn-danger" onclick="deleteProduct('${String(p.id).replaceAll("'","")}')">Delete</button>
         </div>
       </div>
     `).join("");
   }
 
-  async function fileToBase64(file){
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
-  // ADD ITEM (JSON POST)
+  // ---- admin add/edit/delete (FormData, matches backend I gave) ----
   async function addProduct(formEl){
+    const adminKey = requireAdminKey();
+    if(!adminKey) return;
+
     const file = document.getElementById("imageInput").files[0];
-    if (file && file.size > 2 * 1024 * 1024) return alert("Image too large. Please use an image under 2MB.");
+    if (!file) return alert("Please select an image file.");
+    if (file.size > 2 * 1024 * 1024) return alert("Image too large. Please use an image under 2MB.");
 
-    const payload = {
-      name: document.getElementById("productName").value.trim(),
-      description: document.getElementById("productDescription").value.trim(),
-      category: document.getElementById("productCategory").value,
-      price: Number(document.getElementById("productPrice").value),
-      image: ""
-    };
+    const name = document.getElementById("productName").value.trim();
+    const description = document.getElementById("productDescription").value.trim();
+    const category = document.getElementById("productCategory").value;
+    const price = document.getElementById("productPrice").value;
 
-    if(!payload.name) return alert("Name is required");
-    if(!payload.price) return alert("Price is required");
-
-    if(file){
-      payload.image = await fileToBase64(file);
-    }
+    const fd = new FormData();
+    fd.append("image", file);
+    fd.append("name", name);
+    fd.append("description", description);
+    fd.append("category", category);
+    fd.append("size", "single"); // simple default; backend expects size
+    fd.append("price", price);
 
     const btn = document.getElementById("addBtn");
     btn.disabled = true;
-    btn.textContent = "Saving...";
-    setAdminStatus("Saving coffee...");
+    btn.textContent = "Uploading...";
+    setAdminStatus("Uploading image + saving coffee...");
 
     try{
       const res = await fetch(API_BASE + "/api/coffee", {
         method: "POST",
-        headers: { "Content-Type":"application/json" },
-        body: JSON.stringify(payload)
+        headers: { "x-admin-key": adminKey },
+        body: fd
       });
 
       const { text, json } = await readJsonSafe(res);
@@ -520,13 +804,12 @@
     }
   }
 
-  // EDIT MODAL
-  function openEditProduct(mongoId){
-    const p = products.find(x => String(x._id) === String(mongoId));
+  function openEditProduct(id){
+    const p = products.find(x => String(x.id) === String(id));
     if(!p) return alert("Item not found");
 
     document.getElementById("editMsg").textContent = "";
-    document.getElementById("editMongoId").value = p._id;
+    document.getElementById("editId").value = p.id;
     document.getElementById("editName").value = p.name || "";
     document.getElementById("editPrice").value = Number(p.price) || 0;
     document.getElementById("editDescription").value = p.description || "";
@@ -539,18 +822,20 @@
     } else {
       prev.classList.add("hidden");
     }
+
     document.getElementById("editImage").value = "";
     document.getElementById("editModal").classList.remove("hidden");
   }
 
-  function closeEditModal(){
-    document.getElementById("editModal").classList.add("hidden");
-  }
+  function closeEditModal(){ document.getElementById("editModal").classList.add("hidden"); }
 
   async function saveEditProduct(){
-    const id = document.getElementById("editMongoId").value;
+    const adminKey = requireAdminKey();
+    if(!adminKey) return;
+
+    const id = document.getElementById("editId").value;
     const name = document.getElementById("editName").value.trim();
-    const price = Number(document.getElementById("editPrice").value);
+    const price = document.getElementById("editPrice").value;
     const description = document.getElementById("editDescription").value.trim();
     const category = document.getElementById("editCategory").value;
     const file = document.getElementById("editImage").files[0];
@@ -562,16 +847,19 @@
     if(!price) return msg.textContent = "Price is required";
     if(file && file.size > 2 * 1024 * 1024) return msg.textContent = "Image too large (max 2MB)";
 
-    const payload = { name, price, description, category };
-    if(file){
-      payload.image = await fileToBase64(file);
-    }
+    const fd = new FormData();
+    fd.append("name", name);
+    fd.append("price", price);
+    fd.append("description", description);
+    fd.append("category", category);
+    fd.append("size", "single");
+    if(file) fd.append("image", file);
 
     try{
       const res = await fetch(API_BASE + "/api/coffee/" + encodeURIComponent(id), {
         method: "PUT",
-        headers: { "Content-Type":"application/json" },
-        body: JSON.stringify(payload)
+        headers: { "x-admin-key": adminKey },
+        body: fd
       });
 
       const { text, json } = await readJsonSafe(res);
@@ -585,12 +873,15 @@
     }
   }
 
-  async function deleteProduct(mongoId){
+  async function deleteProduct(id){
     if (!confirm("Delete this item?")) return;
+    const adminKey = requireAdminKey();
+    if(!adminKey) return;
 
     try{
-      const res = await fetch(API_BASE + "/api/coffee/" + encodeURIComponent(mongoId), {
-        method: "DELETE"
+      const res = await fetch(API_BASE + "/api/coffee/" + encodeURIComponent(id), {
+        method: "DELETE",
+        headers: { "x-admin-key": adminKey }
       });
 
       const { text, json } = await readJsonSafe(res);
@@ -603,6 +894,7 @@
     }
   }
 
+  // ---- page ----
   function reloadAll(){
     loadProducts();
     checkHealth();
@@ -641,6 +933,7 @@
       await addProduct(e.target);
     });
 
+    updateCartCount();
     checkHealth();
     loadProducts();
   });
