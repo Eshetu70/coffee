@@ -1,8 +1,9 @@
 /**
  * server.js (Yordi Coffee)
- * ✅ DB NAME: Yordi_Coffe
+ * ✅ DB NAME: Yordi_Coffee
  * ✅ COLLECTION: coffee
  *
+ * Install:
  * npm i express cors mongoose multer bcryptjs jsonwebtoken nodemailer dotenv
  */
 
@@ -29,7 +30,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// ✅ FIX for "Missing parameter name at index 1: *"
+// ✅ FIX for Express 5 / path-to-regexp: don't use app.options("*")
 app.options(/.*/, cors(corsOptions));
 
 app.use(express.json({ limit: "10mb" }));
@@ -56,20 +57,22 @@ const {
 } = process.env;
 
 if (!MONGODB_URI) {
-  console.error("❌ Missing MONGODB_URI in .env");
+  console.error("❌ Missing MONGODB_URI in environment variables");
   process.exit(1);
 }
 if (!JWT_SECRET) {
-  console.error("❌ Missing JWT_SECRET in .env");
+  console.error("❌ Missing JWT_SECRET in environment variables");
   process.exit(1);
 }
 
-// ---------- MONGO ----------
+// ---------- MONGO (UPDATED FIX) ----------
+// ✅ Best: URI already includes /Yordi_Coffee so no dbName needed.
+// If your URI does NOT include /Yordi_Coffee, add dbName: "Yordi_Coffee".
 mongoose
   .connect(MONGODB_URI, {
-    dbName: "Yordi_Coffe", // ✅ forces DB name even if URI doesn't include it
+    // dbName: "Yordi_Coffee", // only needed if your URI does not include /Yordi_Coffee
   })
-  .then(() => console.log("✅ MongoDB connected (db: Yordi_Coffe)"))
+  .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => {
     console.error("❌ MongoDB error:", err.message);
     process.exit(1);
@@ -98,7 +101,7 @@ const coffeeSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-// third param sets exact collection name:
+// third param forces exact collection name:
 const Coffee = mongoose.model("Coffee", coffeeSchema, "coffee");
 
 const orderSchema = new mongoose.Schema(
