@@ -1,5 +1,5 @@
-// server.js ✅ YORDI ONLY (no mixing with Fashion)
-// -------------------------------------------------
+// server.js ✅ YORDI ONLY (FORCES DB = Yordi_Coffee)
+// --------------------------------------------------
 /**
  * Yordi Coffee Backend (MongoDB + Mongoose)
  * - Coffee CRUD (ADMIN protected with ADMIN_API_KEY)
@@ -7,13 +7,15 @@
  * - Orders + My Orders (JWT required)
  * - Admin: verify key, view/update ALL orders, email customer
  *
- * ✅ HARD SEPARATION FROM FASHION:
- * - Unique COLLECTION NAMES:
- *   yordi_coffee_items, yordi_users, yordi_orders
- * - Unique MODEL NAMES:
- *   YordiCoffee, YordiUser, YordiOrder
- * - Unique ORDER REF:
- *   userId ref: "YordiUser" (NOT "User")
+ * ✅ IMPORTANT FIX:
+ * Forces Yordi to use its own DATABASE:
+ *   DB_NAME = Yordi_Coffee
+ * even if your Mongo URI is the same cluster used by Sena Fashion.
+ *
+ * Collections:
+ * - yordi_coffee_items
+ * - yordi_users
+ * - yordi_orders
  */
 
 require("dotenv").config();
@@ -32,7 +34,12 @@ const app = express();
 
 // ---------- CONFIG ----------
 const PORT = process.env.PORT || 3000;
+
+// ✅ You can keep cluster URI here (even if it's same as Fashion)
 const MONGODB_URI = process.env.MONGODB_URI;
+
+// ✅ FORCE DB NAME FOR YORDI
+const DB_NAME = process.env.DB_NAME || "Yordi_Coffee";
 
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY || "";
 const JWT_SECRET = process.env.JWT_SECRET || "";
@@ -61,7 +68,6 @@ app.use(
   })
 );
 
-// ✅ SAFE preflight handler
 app.use((req, res, next) => {
   if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
@@ -73,22 +79,33 @@ app.use(express.urlencoded({ extended: true }));
 mongoose.set("strictQuery", true);
 mongoose.set("bufferCommands", false);
 
-// ---------- CONNECT ----------
+// ---------- CONNECT (base connection) ----------
+let yordiDb = null;
+
 (async () => {
   try {
-    await mongoose.connect(MONGODB_URI, {
+    const base = await mongoose.connect(MONGODB_URI, {
       serverSelectionTimeoutMS: 8000,
       socketTimeoutMS: 20000,
       family: 4,
     });
-    console.log("✅ MongoDB connected:", mongoose.connection.name);
+
+    // ✅ This is the key: force DB separation
+    yordiDb = base.connection.useDb(DB_NAME, { useCache: true });
+
+    console.log("✅ Mongo cluster connected");
+    console.log("✅ Yordi DB forced to:", yordiDb.name);
   } catch (err) {
     console.error("❌ MongoDB error:", err?.message || err);
     process.exit(1);
   }
 })();
 
-// ---------- MODELS (✅ UNIQUE COLLECTIONS + ✅ UNIQUE MODEL NAMES) ----------
+// ---------- MODELS (created on yordiDb) ----------
+function requireDb(req, res, next) {
+  if (!yordiDb) return res.status(503).json({ error: "DB not ready yet" });
+  next();
+}
 
 // Coffee
 const coffeeSchema = new mongoose.Schema(
@@ -97,12 +114,10 @@ const coffeeSchema = new mongoose.Schema(
     description: { type: String, default: "" },
     category: { type: String, default: "coffee", trim: true },
     price: { type: Number, required: true },
-    image: { type: String, default: "" },
+    image: { type: String, default: "" }, // base64 data URL or URL
   },
   { timestamps: true, collection: "yordi_coffee_items" }
 );
-const YordiCoffee =
-  mongoose.models.YordiCoffee || mongoose.model("YordiCoffee", coffeeSchema);
 
 // User
 const userSchema = new mongoose.Schema(
@@ -113,19 +128,12 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true, collection: "yordi_users" }
 );
-
-// ✅ Unique per app: (email + app) uniqueness by collection
 userSchema.index({ email: 1 }, { unique: true });
-
-const YordiUser =
-  mongoose.models.YordiUser || mongoose.model("YordiUser", userSchema);
 
 // Order
 const orderSchema = new mongoose.Schema(
   {
     orderId: { type: String, index: true },
-
-    // ✅ IMPORTANT: Ref points to YordiUser (NOT "User")
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "YordiUser" },
 
     items: [
@@ -160,15 +168,19 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true, collection: "yordi_orders" }
 );
 
-const YordiOrder =
-  mongoose.models.YordiOrder || mongoose.model("YordiOrder", orderSchema);
+// ✅ Create models ONLY on yordiDb (not global mongoose)
+function getModels() {
+  const Coffee = yordiDb.models.YordiCoffee || yordiDb.model("YordiCoffee", coffeeSchema);
+  const User = yordiDb.models.YordiUser || yordiDb.model("YordiUser", userSchema);
+  const Order = yordiDb.models.YordiOrder || yordiDb.model("YordiOrder", orderSchema);
+  return { Coffee, User, Order };
+}
 
 // ---------- HELPERS ----------
 function requireAdmin(req, res, next) {
   if (!ADMIN_API_KEY) return next(); // dev only
   const key = (req.header("x-admin-key") || "").trim();
-  if (!key || key !== ADMIN_API_KEY)
-    return res.status(401).json({ error: "Unauthorized (admin key)" });
+  if (!key || key !== ADMIN_API_KEY) return res.status(401).json({ error: "Unauthorized (admin key)" });
   next();
 }
 
@@ -176,10 +188,9 @@ function authMiddleware(req, res, next) {
   const auth = req.header("Authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   if (!token) return res.status(401).json({ error: "Missing token" });
-
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded; // { userId, email }
+    req.user = decoded;
     next();
   } catch (e) {
     return res.status(401).json({ error: "Invalid token" });
@@ -187,35 +198,25 @@ function authMiddleware(req, res, next) {
 }
 
 function calcTotal(items = []) {
-  return items.reduce(
-    (sum, it) => sum + (Number(it.price) || 0) * (Number(it.qty) || 1),
-    0
-  );
+  return items.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.qty) || 1), 0);
 }
 
 // ---------- EMAIL (optional) ----------
 let mailer = null;
-
 function getMailer() {
   if (!GMAIL_USER || !GMAIL_APP_PASSWORD) return null;
   if (mailer) return mailer;
-
   mailer = nodemailer.createTransport({
     service: "gmail",
     auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
   });
-
   return mailer;
 }
 
 async function sendCustomerEmail({ to, subject, text }) {
   const t = getMailer();
-  if (!t)
-    throw new Error(
-      "Email not configured (missing GMAIL_USER or GMAIL_APP_PASSWORD)."
-    );
+  if (!t) throw new Error("Email not configured (missing GMAIL_USER or GMAIL_APP_PASSWORD).");
   if (!to) throw new Error("Customer email is missing.");
-
   await t.sendMail({
     from: `"${EMAIL_FROM_NAME}" <${GMAIL_USER}>`,
     to,
@@ -225,52 +226,43 @@ async function sendCustomerEmail({ to, subject, text }) {
 }
 
 // ---------- ROUTES ----------
-app.get("/", (req, res) => {
-  res.json({ ok: true, app: "Yordi Coffee API" });
-});
+app.get("/", (req, res) => res.json({ ok: true, app: "Yordi Coffee API" }));
 
-app.get("/api/health", (req, res) => {
+app.get("/api/health", requireDb, (req, res) => {
   res.json({
     ok: true,
-    mongoState: mongoose.connection.readyState,
-    db: mongoose.connection.name,
+    forcedDb: yordiDb.name,
     adminKeySet: Boolean(ADMIN_API_KEY),
     emailConfigured: Boolean(GMAIL_USER && GMAIL_APP_PASSWORD),
-    yordiIsolation: {
-      coffeeCollection: "yordi_coffee_items",
-      userCollection: "yordi_users",
-      orderCollection: "yordi_orders",
-      models: ["YordiCoffee", "YordiUser", "YordiOrder"],
-      orderUserRef: "YordiUser",
+    collections: {
+      coffee: "yordi_coffee_items",
+      users: "yordi_users",
+      orders: "yordi_orders",
     },
   });
 });
 
-// ---- ADMIN VERIFY (unlock admin UI) ----
-app.get("/api/admin/verify", requireAdmin, (req, res) => {
-  res.json({ ok: true });
-});
+// ---- ADMIN VERIFY ----
+app.get("/api/admin/verify", requireDb, requireAdmin, (req, res) => res.json({ ok: true }));
 
-// ---- COFFEE (PUBLIC GET, ADMIN WRITE) ----
-app.get("/api/coffee", async (req, res) => {
+// ---- COFFEE ----
+app.get("/api/coffee", requireDb, async (req, res) => {
   try {
-    const list = await YordiCoffee.find().sort({ createdAt: -1 }).lean();
+    const { Coffee } = getModels();
+    const list = await Coffee.find().sort({ createdAt: -1 }).lean();
     res.json(list);
   } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to load coffee", details: err?.message || String(err) });
+    res.status(500).json({ error: "Failed to load coffee", details: err?.message || String(err) });
   }
 });
 
-app.post("/api/coffee", requireAdmin, async (req, res) => {
+app.post("/api/coffee", requireDb, requireAdmin, async (req, res) => {
   try {
-    const { name, description = "", category = "coffee", price, image = "" } =
-      req.body || {};
-    if (!name || price === undefined)
-      return res.status(400).json({ error: "name and price are required" });
+    const { Coffee } = getModels();
+    const { name, description = "", category = "coffee", price, image = "" } = req.body || {};
+    if (!name || price === undefined) return res.status(400).json({ error: "name and price are required" });
 
-    const created = await YordiCoffee.create({
+    const created = await Coffee.create({
       name: String(name).trim(),
       description: String(description || "").trim(),
       category: String(category || "coffee").trim(),
@@ -280,18 +272,15 @@ app.post("/api/coffee", requireAdmin, async (req, res) => {
 
     res.json(created);
   } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to add coffee", details: err?.message || String(err) });
+    res.status(500).json({ error: "Failed to add coffee", details: err?.message || String(err) });
   }
 });
 
-app.put("/api/coffee/:id", requireAdmin, async (req, res) => {
+app.put("/api/coffee/:id", requireDb, requireAdmin, async (req, res) => {
   try {
-    const { name, description = "", category = "coffee", price, image } =
-      req.body || {};
-    if (!name || price === undefined)
-      return res.status(400).json({ error: "name and price are required" });
+    const { Coffee } = getModels();
+    const { name, description = "", category = "coffee", price, image } = req.body || {};
+    if (!name || price === undefined) return res.status(400).json({ error: "name and price are required" });
 
     const update = {
       name: String(name).trim(),
@@ -301,90 +290,76 @@ app.put("/api/coffee/:id", requireAdmin, async (req, res) => {
     };
     if (image !== undefined) update.image = String(image || "");
 
-    const updated = await YordiCoffee.findByIdAndUpdate(req.params.id, update, {
-      new: true,
-    });
+    const updated = await Coffee.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!updated) return res.status(404).json({ error: "Coffee not found" });
     res.json(updated);
   } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to update coffee", details: err?.message || String(err) });
+    res.status(500).json({ error: "Failed to update coffee", details: err?.message || String(err) });
   }
 });
 
-app.delete("/api/coffee/:id", requireAdmin, async (req, res) => {
+app.delete("/api/coffee/:id", requireDb, requireAdmin, async (req, res) => {
   try {
-    const deleted = await YordiCoffee.findByIdAndDelete(req.params.id);
+    const { Coffee } = getModels();
+    const deleted = await Coffee.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ error: "Coffee not found" });
     res.json({ ok: true });
   } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to delete coffee", details: err?.message || String(err) });
+    res.status(500).json({ error: "Failed to delete coffee", details: err?.message || String(err) });
   }
 });
 
 // ---- AUTH ----
-app.post("/api/auth/register", async (req, res) => {
+app.post("/api/auth/register", requireDb, async (req, res) => {
   try {
+    const { User } = getModels();
     const { fullName, email, password } = req.body || {};
-    if (!fullName || !email || !password)
-      return res.status(400).json({ error: "fullName, email, password required" });
-    if (String(password).length < 6)
-      return res.status(400).json({ error: "Password must be at least 6 characters" });
+    if (!fullName || !email || !password) return res.status(400).json({ error: "fullName, email, password required" });
+    if (String(password).length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
 
     const emailNorm = String(email).toLowerCase().trim();
-    const exists = await YordiUser.findOne({ email: emailNorm }).lean();
+    const exists = await User.findOne({ email: emailNorm }).lean();
     if (exists) return res.status(400).json({ error: "Email already registered" });
 
     const passwordHash = await bcrypt.hash(String(password), 10);
-    const user = await YordiUser.create({
+    const user = await User.create({
       fullName: String(fullName).trim(),
       email: emailNorm,
       passwordHash,
     });
 
-    const token = jwt.sign({ userId: String(user._id), email: user.email }, JWT_SECRET, {
-      expiresIn: "30d",
-    });
-
+    const token = jwt.sign({ userId: String(user._id), email: user.email }, JWT_SECRET, { expiresIn: "30d" });
     res.json({ token, user: { fullName: user.fullName, email: user.email } });
   } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Register failed", details: err?.message || String(err) });
+    res.status(500).json({ error: "Register failed", details: err?.message || String(err) });
   }
 });
 
-app.post("/api/auth/login", async (req, res) => {
+app.post("/api/auth/login", requireDb, async (req, res) => {
   try {
+    const { User } = getModels();
     const { email, password } = req.body || {};
-    if (!email || !password)
-      return res.status(400).json({ error: "email and password required" });
+    if (!email || !password) return res.status(400).json({ error: "email and password required" });
 
     const emailNorm = String(email).toLowerCase().trim();
-    const user = await YordiUser.findOne({ email: emailNorm });
+    const user = await User.findOne({ email: emailNorm });
     if (!user) return res.status(400).json({ error: "Invalid email or password" });
 
     const ok = await bcrypt.compare(String(password), user.passwordHash);
     if (!ok) return res.status(400).json({ error: "Invalid email or password" });
 
-    const token = jwt.sign({ userId: String(user._id), email: user.email }, JWT_SECRET, {
-      expiresIn: "30d",
-    });
-
+    const token = jwt.sign({ userId: String(user._id), email: user.email }, JWT_SECRET, { expiresIn: "30d" });
     res.json({ token, user: { fullName: user.fullName, email: user.email } });
   } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Login failed", details: err?.message || String(err) });
+    res.status(500).json({ error: "Login failed", details: err?.message || String(err) });
   }
 });
 
 // ---- ORDERS (CUSTOMER) ----
-app.post("/api/orders", authMiddleware, async (req, res) => {
+app.post("/api/orders", requireDb, authMiddleware, async (req, res) => {
   try {
+    const { Order } = getModels();
+
     const {
       items = [],
       fullName,
@@ -398,15 +373,13 @@ app.post("/api/orders", authMiddleware, async (req, res) => {
       telebirrRef = "",
     } = req.body || {};
 
-    if (!Array.isArray(items) || items.length === 0)
-      return res.status(400).json({ error: "Cart is empty" });
-    if (!fullName || !phone || !address)
-      return res.status(400).json({ error: "fullName, phone, address required" });
+    if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: "Cart is empty" });
+    if (!fullName || !phone || !address) return res.status(400).json({ error: "fullName, phone, address required" });
 
     const total = calcTotal(items);
     const orderId = "ORD-" + Date.now();
 
-    const order = await YordiOrder.create({
+    const order = await Order.create({
       orderId,
       userId: req.user.userId,
       items,
@@ -418,69 +391,61 @@ app.post("/api/orders", authMiddleware, async (req, res) => {
 
     res.json({ ok: true, order });
   } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to place order", details: err?.message || String(err) });
+    res.status(500).json({ error: "Failed to place order", details: err?.message || String(err) });
   }
 });
 
-app.get("/api/orders/my", authMiddleware, async (req, res) => {
+app.get("/api/orders/my", requireDb, authMiddleware, async (req, res) => {
   try {
-    const list = await YordiOrder.find({ userId: req.user.userId })
-      .sort({ createdAt: -1 })
-      .lean();
-
+    const { Order } = getModels();
+    const list = await Order.find({ userId: req.user.userId }).sort({ createdAt: -1 }).lean();
     res.json(list);
   } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to load orders", details: err?.message || String(err) });
+    res.status(500).json({ error: "Failed to load orders", details: err?.message || String(err) });
   }
 });
 
 // ---- ADMIN: ALL ORDERS ----
-app.get("/api/admin/orders", requireAdmin, async (req, res) => {
+app.get("/api/admin/orders", requireDb, requireAdmin, async (req, res) => {
   try {
-    const list = await YordiOrder.find().sort({ createdAt: -1 }).lean();
+    const { Order } = getModels();
+    const list = await Order.find().sort({ createdAt: -1 }).lean();
     res.json(list);
   } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to load admin orders", details: err?.message || String(err) });
+    res.status(500).json({ error: "Failed to load admin orders", details: err?.message || String(err) });
   }
 });
 
 // ---- ADMIN: UPDATE ORDER ----
-app.put("/api/admin/orders/:id", requireAdmin, async (req, res) => {
+app.put("/api/admin/orders/:id", requireDb, requireAdmin, async (req, res) => {
   try {
+    const { Order } = getModels();
     const { status, paymentStatus } = req.body || {};
 
     const update = {};
     if (status !== undefined) update.status = String(status);
     if (paymentStatus !== undefined) update["payment.status"] = String(paymentStatus);
 
-    const updated = await YordiOrder.findByIdAndUpdate(req.params.id, update, { new: true });
+    const updated = await Order.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!updated) return res.status(404).json({ error: "Order not found" });
 
     res.json({ ok: true, order: updated });
   } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to update order", details: err?.message || String(err) });
+    res.status(500).json({ error: "Failed to update order", details: err?.message || String(err) });
   }
 });
 
 // ---- ADMIN: EMAIL CUSTOMER ABOUT ORDER ----
-app.post("/api/admin/orders/:id/email", requireAdmin, async (req, res) => {
+app.post("/api/admin/orders/:id/email", requireDb, requireAdmin, async (req, res) => {
   try {
+    const { Order } = getModels();
     const { template = "custom", message = "", subject = "" } = req.body || {};
 
-    const order = await YordiOrder.findById(req.params.id).lean();
+    const order = await Order.findById(req.params.id).lean();
     if (!order) return res.status(404).json({ error: "Order not found" });
 
     const customerEmail = (order.customer?.email || "").trim();
-    if (!customerEmail)
-      return res.status(400).json({ error: "Customer email is missing on this order" });
+    if (!customerEmail) return res.status(400).json({ error: "Customer email is missing on this order" });
 
     const orderId = order.orderId || "";
     const customerName = order.customer?.fullName || "Customer";
@@ -557,8 +522,7 @@ Total: ${total} ETB
       },
     };
 
-    const picked =
-      templates[String(template || "custom").toLowerCase()] || templates.custom;
+    const picked = templates[String(template || "custom").toLowerCase()] || templates.custom;
 
     await sendCustomerEmail({ to: customerEmail, subject: picked.subject, text: picked.text });
 
