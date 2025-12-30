@@ -1,10 +1,9 @@
-// server.js  ✅ FULL UPDATED (your backend) — no cuts
 /**
  * Yordi Coffee Backend (MongoDB + Mongoose)
  * - Coffee CRUD (ADMIN protected with ADMIN_API_KEY)
  * - Auth (register/login) with JWT
  * - Orders + My Orders (JWT required)
- * - Admin: verify key, view/update ALL orders, email customer
+ * - Admin: verify key, view/update ALL orders, email customer (Gmail SMTP)
  */
 
 require("dotenv").config();
@@ -168,16 +167,32 @@ function calcTotal(items = []) {
   return items.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.qty) || 1), 0);
 }
 
-// ---------- EMAIL (optional) ----------
+// ---------- EMAIL (GMAIL SMTP) ----------
 let mailer = null;
+
 function getMailer() {
   if (!GMAIL_USER || !GMAIL_APP_PASSWORD) return null;
   if (mailer) return mailer;
 
+  // ✅ More reliable on Render than "service:gmail"
   mailer = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true, // SSL
     auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
+
+    // ✅ prevent long hangs
+    connectionTimeout: 20000,
+    greetingTimeout: 20000,
+    socketTimeout: 30000,
+    pool: false,
+
+    tls: {
+      servername: "smtp.gmail.com",
+      rejectUnauthorized: true,
+    },
   });
+
   return mailer;
 }
 
@@ -185,6 +200,9 @@ async function sendCustomerEmail({ to, subject, text }) {
   const t = getMailer();
   if (!t) throw new Error("Email not configured (missing GMAIL_USER or GMAIL_APP_PASSWORD).");
   if (!to) throw new Error("Customer email is missing.");
+
+  // ✅ fail fast with clear message if auth/network issue
+  await t.verify();
 
   await t.sendMail({
     from: `"${EMAIL_FROM_NAME}" <${GMAIL_USER}>`,
@@ -212,6 +230,24 @@ app.get("/api/health", (req, res) => {
 // ---- ADMIN VERIFY (unlock admin UI) ----
 app.get("/api/admin/verify", requireAdmin, (req, res) => {
   res.json({ ok: true });
+});
+
+// ✅ EMAIL TEST (use to debug Render)
+app.post("/api/admin/email-test", requireAdmin, async (req, res) => {
+  try {
+    const { to } = req.body || {};
+    if (!to) return res.status(400).json({ error: "to is required" });
+
+    await sendCustomerEmail({
+      to: String(to).trim(),
+      subject: "Yordi Coffee - Email Test",
+      text: "This is a test email sent from your Render server.",
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Email test failed", details: err?.message || String(err) });
+  }
 });
 
 // ---- COFFEE (PUBLIC GET, ADMIN WRITE) ----
@@ -400,6 +436,7 @@ app.post("/api/admin/orders/:id/email", requireAdmin, async (req, res) => {
     if (!order) return res.status(404).json({ error: "Order not found" });
 
     const customerEmail = (order.customer?.email || "").trim();
+    // ✅ THIS is exactly where that check belongs
     if (!customerEmail) return res.status(400).json({ error: "Customer email is missing on this order" });
 
     const orderId = order.orderId || "";
@@ -412,8 +449,7 @@ app.post("/api/admin/orders/:id/email", requireAdmin, async (req, res) => {
     const templates = {
       paid: {
         subject: `Payment Confirmed - Order ${orderId}`,
-        text:
-`Hello ${customerName},
+        text: `Hello ${customerName},
 
 Thank you! We have confirmed your payment for Order ${orderId}.
 Payment Status: PAID
@@ -422,12 +458,11 @@ Total: ${total} ETB
 
 If you have any questions, reply to this email.
 
-— ${EMAIL_FROM_NAME}`
+— ${EMAIL_FROM_NAME}`,
       },
       failed: {
         subject: `Payment Issue - Order ${orderId}`,
-        text:
-`Hello ${customerName},
+        text: `Hello ${customerName},
 
 We were unable to confirm your payment for Order ${orderId}.
 Payment Status: FAILED
@@ -440,12 +475,11 @@ Please reply to this email or resend the payment and share the reference.
 Message from admin:
 ${message || "(none)"}
 
-— ${EMAIL_FROM_NAME}`
+— ${EMAIL_FROM_NAME}`,
       },
       processing: {
         subject: `Order Update - Order ${orderId} is Processing`,
-        text:
-`Hello ${customerName},
+        text: `Hello ${customerName},
 
 Your Order ${orderId} is now being processed.
 Order Status: PROCESSING
@@ -455,12 +489,11 @@ Total: ${total} ETB
 Message from admin:
 ${message || "(none)"}
 
-— ${EMAIL_FROM_NAME}`
+— ${EMAIL_FROM_NAME}`,
       },
       delivered: {
         subject: `Delivered - Order ${orderId}`,
-        text:
-`Hello ${customerName},
+        text: `Hello ${customerName},
 
 Good news! Your Order ${orderId} has been delivered.
 Order Status: DELIVERED
@@ -468,12 +501,11 @@ Total: ${total} ETB
 
 Thank you for choosing ${EMAIL_FROM_NAME}.
 
-— ${EMAIL_FROM_NAME}`
+— ${EMAIL_FROM_NAME}`,
       },
       custom: {
         subject: subject || `Message about your order ${orderId}`,
-        text:
-`Hello ${customerName},
+        text: `Hello ${customerName},
 
 ${message || ""}
 
@@ -482,8 +514,8 @@ Order Status: ${orderStatus}
 Payment: ${payMethod} (${payStatus})
 Total: ${total} ETB
 
-— ${EMAIL_FROM_NAME}`
-      }
+— ${EMAIL_FROM_NAME}`,
+      },
     };
 
     const picked = templates[String(template || "custom").toLowerCase()] || templates.custom;
@@ -491,12 +523,18 @@ Total: ${total} ETB
     await sendCustomerEmail({
       to: customerEmail,
       subject: picked.subject,
-      text: picked.text
+      text: picked.text,
     });
 
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: "Failed to send email", details: err?.message || String(err) });
+    // ✅ better error details for your frontend
+    res.status(500).json({
+      error: "Failed to send email",
+      details: err?.message || String(err),
+      hint:
+        "If you see 'Connection timeout' on Render, Gmail SMTP may be blocked/slow. Try /api/admin/email-test or use Resend/SendGrid.",
+    });
   }
 });
 
