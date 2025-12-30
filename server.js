@@ -1,9 +1,16 @@
+// server.js ✅ FULL UPDATED (your backend) — no cuts
 /**
  * Yordi Coffee Backend (MongoDB + Mongoose)
  * - Coffee CRUD (ADMIN protected with ADMIN_API_KEY)
  * - Auth (register/login) with JWT
  * - Orders + My Orders (JWT required)
- * - Admin: verify key, view/update ALL orders, email customer (Gmail SMTP)
+ * - Admin: verify key, view/update ALL orders, email customer
+ *
+ * ✅ IMPORTANT FIX:
+ * Uses UNIQUE collection names so Fashion + Yordi Coffee won't mix data:
+ * - yordi_coffee_items
+ * - yordi_users
+ * - yordi_orders
  */
 
 require("dotenv").config();
@@ -78,7 +85,7 @@ mongoose.set("bufferCommands", false);
   }
 })();
 
-// ---------- MODELS ----------
+// ---------- MODELS (✅ UNIQUE COLLECTION NAMES) ----------
 const coffeeSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -87,7 +94,10 @@ const coffeeSchema = new mongoose.Schema(
     price: { type: Number, required: true },
     image: { type: String, default: "" }, // base64 data URL or URL
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    collection: "yordi_coffee_items", // ✅ FIX: prevents mixing with other apps
+  }
 );
 const Coffee = mongoose.model("Coffee", coffeeSchema);
 
@@ -97,7 +107,10 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, trim: true, unique: true, lowercase: true },
     passwordHash: { type: String, required: true },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    collection: "yordi_users", // ✅ FIX
+  }
 );
 const User = mongoose.model("User", userSchema);
 
@@ -135,7 +148,10 @@ const orderSchema = new mongoose.Schema(
     total: { type: Number, default: 0 },
     status: { type: String, default: "placed" }, // placed/processing/delivered/cancelled
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    collection: "yordi_orders", // ✅ FIX: this is the big one (no more Fashion orders)
+  }
 );
 const Order = mongoose.model("Order", orderSchema);
 
@@ -167,32 +183,16 @@ function calcTotal(items = []) {
   return items.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.qty) || 1), 0);
 }
 
-// ---------- EMAIL (GMAIL SMTP) ----------
+// ---------- EMAIL (optional) ----------
 let mailer = null;
-
 function getMailer() {
   if (!GMAIL_USER || !GMAIL_APP_PASSWORD) return null;
   if (mailer) return mailer;
 
-  // ✅ More reliable on Render than "service:gmail"
   mailer = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true, // SSL
+    service: "gmail",
     auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
-
-    // ✅ prevent long hangs
-    connectionTimeout: 20000,
-    greetingTimeout: 20000,
-    socketTimeout: 30000,
-    pool: false,
-
-    tls: {
-      servername: "smtp.gmail.com",
-      rejectUnauthorized: true,
-    },
   });
-
   return mailer;
 }
 
@@ -200,9 +200,6 @@ async function sendCustomerEmail({ to, subject, text }) {
   const t = getMailer();
   if (!t) throw new Error("Email not configured (missing GMAIL_USER or GMAIL_APP_PASSWORD).");
   if (!to) throw new Error("Customer email is missing.");
-
-  // ✅ fail fast with clear message if auth/network issue
-  await t.verify();
 
   await t.sendMail({
     from: `"${EMAIL_FROM_NAME}" <${GMAIL_USER}>`,
@@ -224,30 +221,17 @@ app.get("/api/health", (req, res) => {
     db: mongoose.connection.name,
     adminKeySet: Boolean(ADMIN_API_KEY),
     emailConfigured: Boolean(GMAIL_USER && GMAIL_APP_PASSWORD),
+    collections: {
+      coffee: "yordi_coffee_items",
+      users: "yordi_users",
+      orders: "yordi_orders",
+    },
   });
 });
 
 // ---- ADMIN VERIFY (unlock admin UI) ----
 app.get("/api/admin/verify", requireAdmin, (req, res) => {
   res.json({ ok: true });
-});
-
-// ✅ EMAIL TEST (use to debug Render)
-app.post("/api/admin/email-test", requireAdmin, async (req, res) => {
-  try {
-    const { to } = req.body || {};
-    if (!to) return res.status(400).json({ error: "to is required" });
-
-    await sendCustomerEmail({
-      to: String(to).trim(),
-      subject: "Yordi Coffee - Email Test",
-      text: "This is a test email sent from your Render server.",
-    });
-
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: "Email test failed", details: err?.message || String(err) });
-  }
 });
 
 // ---- COFFEE (PUBLIC GET, ADMIN WRITE) ----
@@ -436,7 +420,6 @@ app.post("/api/admin/orders/:id/email", requireAdmin, async (req, res) => {
     if (!order) return res.status(404).json({ error: "Order not found" });
 
     const customerEmail = (order.customer?.email || "").trim();
-    // ✅ THIS is exactly where that check belongs
     if (!customerEmail) return res.status(400).json({ error: "Customer email is missing on this order" });
 
     const orderId = order.orderId || "";
@@ -528,13 +511,7 @@ Total: ${total} ETB
 
     res.json({ ok: true });
   } catch (err) {
-    // ✅ better error details for your frontend
-    res.status(500).json({
-      error: "Failed to send email",
-      details: err?.message || String(err),
-      hint:
-        "If you see 'Connection timeout' on Render, Gmail SMTP may be blocked/slow. Try /api/admin/email-test or use Resend/SendGrid.",
-    });
+    res.status(500).json({ error: "Failed to send email", details: err?.message || String(err) });
   }
 });
 
