@@ -1105,42 +1105,49 @@
   }
 
   // ✅✅✅ UPDATED: this now shows the REAL backend error details
-  async function adminEmailCustomer(id){
-    const key = getAdminKey();
-    if(!key) return alert("Admin key required.");
+async function adminEmailCustomer(id){
+  const key = getAdminKey();
+  if(!key) return alert("Admin key required.");
 
-    const tpl = document.getElementById("mailtpl_" + id).value;
-    const message = document.getElementById("mailmsg_" + id).value.trim();
+  const tpl = document.getElementById("mailtpl_" + id).value;
+  const message = document.getElementById("mailmsg_" + id).value.trim();
 
-    try{
-      const res = await fetch(API_BASE + "/api/admin/orders/" + encodeURIComponent(id) + "/email", {
-        method: "POST",
-        headers: {
-          "Content-Type":"application/json",
-          "x-admin-key": key
-        },
-        body: JSON.stringify({ template: tpl, message })
-      });
-
-      const { text, json } = await readJsonSafe(res);
-
-      if(res.status === 401){
-        clearAdminKey();
-        adminUnlocked = false;
-        throw new Error("Unauthorized admin key. Please open Admin again.");
-      }
-
-      if(!res.ok){
-        // ✅ show REAL message from backend
-        throw new Error(json?.details || json?.error || text || `HTTP ${res.status}`);
-      }
-
-      alert("✅ Email sent to customer!");
-    }catch(e){
-      alert("Email error: " + e.message);
-      console.error("Email send failed:", e);
-    }
+  // ✅ quick health check first
+  try{
+    const ping = await fetch(API_BASE + "/api/health", { cache: "no-store" });
+    if(!ping.ok) throw new Error("Backend not reachable (health check failed).");
+  }catch(e){
+    alert("Backend fetch failed. Check API_BASE and Render status.\n\n" + e.message);
+    return;
   }
+
+  try{
+    const res = await fetch(API_BASE + "/api/admin/orders/" + encodeURIComponent(id) + "/email", {
+      method: "POST",
+      headers: {
+        "Content-Type":"application/json",
+        "x-admin-key": key
+      },
+      body: JSON.stringify({ template: tpl, message })
+    });
+
+    const text = await res.text();
+    let json = null;
+    try{ json = JSON.parse(text); }catch{}
+
+    if(res.status === 401){
+      clearAdminKey();
+      adminUnlocked = false;
+      throw new Error("Unauthorized admin key. Please open Admin again.");
+    }
+    if(!res.ok) throw new Error(json?.details || json?.error || text || "Email failed");
+
+    alert("✅ Email sent to customer!");
+  }catch(e){
+    alert("Email error: " + e.message);
+  }
+}
+
 
   // ------------------ ADMIN COFFEE LIST ------------------
   function renderAdminList(){
