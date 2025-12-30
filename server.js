@@ -1,4 +1,5 @@
-// server.js ✅ FULL UPDATED (your backend) — no cuts
+// server.js ✅ YORDI ONLY (no mixing with Fashion)
+// -------------------------------------------------
 /**
  * Yordi Coffee Backend (MongoDB + Mongoose)
  * - Coffee CRUD (ADMIN protected with ADMIN_API_KEY)
@@ -6,11 +7,13 @@
  * - Orders + My Orders (JWT required)
  * - Admin: verify key, view/update ALL orders, email customer
  *
- * ✅ IMPORTANT FIX:
- * Uses UNIQUE collection names so Fashion + Yordi Coffee won't mix data:
- * - yordi_coffee_items
- * - yordi_users
- * - yordi_orders
+ * ✅ HARD SEPARATION FROM FASHION:
+ * - Unique COLLECTION NAMES:
+ *   yordi_coffee_items, yordi_users, yordi_orders
+ * - Unique MODEL NAMES:
+ *   YordiCoffee, YordiUser, YordiOrder
+ * - Unique ORDER REF:
+ *   userId ref: "YordiUser" (NOT "User")
  */
 
 require("dotenv").config();
@@ -31,7 +34,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY || ""; // ✅ your env name
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || "";
 const JWT_SECRET = process.env.JWT_SECRET || "";
 
 // Email (optional)
@@ -58,7 +61,7 @@ app.use(
   })
 );
 
-// ✅ SAFE preflight handler (prevents path-to-regexp "*" crash)
+// ✅ SAFE preflight handler
 app.use((req, res, next) => {
   if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
@@ -85,39 +88,45 @@ mongoose.set("bufferCommands", false);
   }
 })();
 
-// ---------- MODELS (✅ UNIQUE COLLECTION NAMES) ----------
+// ---------- MODELS (✅ UNIQUE COLLECTIONS + ✅ UNIQUE MODEL NAMES) ----------
+
+// Coffee
 const coffeeSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     description: { type: String, default: "" },
     category: { type: String, default: "coffee", trim: true },
     price: { type: Number, required: true },
-    image: { type: String, default: "" }, // base64 data URL or URL
+    image: { type: String, default: "" },
   },
-  {
-    timestamps: true,
-    collection: "yordi_coffee_items", // ✅ FIX: prevents mixing with other apps
-  }
+  { timestamps: true, collection: "yordi_coffee_items" }
 );
-const Coffee = mongoose.model("Coffee", coffeeSchema);
+const YordiCoffee =
+  mongoose.models.YordiCoffee || mongoose.model("YordiCoffee", coffeeSchema);
 
+// User
 const userSchema = new mongoose.Schema(
   {
     fullName: { type: String, required: true, trim: true },
-    email: { type: String, required: true, trim: true, unique: true, lowercase: true },
+    email: { type: String, required: true, trim: true, lowercase: true },
     passwordHash: { type: String, required: true },
   },
-  {
-    timestamps: true,
-    collection: "yordi_users", // ✅ FIX
-  }
+  { timestamps: true, collection: "yordi_users" }
 );
-const User = mongoose.model("User", userSchema);
 
+// ✅ Unique per app: (email + app) uniqueness by collection
+userSchema.index({ email: 1 }, { unique: true });
+
+const YordiUser =
+  mongoose.models.YordiUser || mongoose.model("YordiUser", userSchema);
+
+// Order
 const orderSchema = new mongoose.Schema(
   {
     orderId: { type: String, index: true },
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+
+    // ✅ IMPORTANT: Ref points to YordiUser (NOT "User")
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "YordiUser" },
 
     items: [
       {
@@ -140,7 +149,7 @@ const orderSchema = new mongoose.Schema(
     },
 
     payment: {
-      method: { type: String, default: "cash" }, // cash/card/telebirr
+      method: { type: String, default: "cash" },
       telebirrRef: { type: String, default: "" },
       status: { type: String, default: "pending" }, // pending/paid/failed
     },
@@ -148,21 +157,18 @@ const orderSchema = new mongoose.Schema(
     total: { type: Number, default: 0 },
     status: { type: String, default: "placed" }, // placed/processing/delivered/cancelled
   },
-  {
-    timestamps: true,
-    collection: "yordi_orders", // ✅ FIX: this is the big one (no more Fashion orders)
-  }
+  { timestamps: true, collection: "yordi_orders" }
 );
-const Order = mongoose.model("Order", orderSchema);
+
+const YordiOrder =
+  mongoose.models.YordiOrder || mongoose.model("YordiOrder", orderSchema);
 
 // ---------- HELPERS ----------
 function requireAdmin(req, res, next) {
-  if (!ADMIN_API_KEY) {
-    // If not set, allow (dev only)
-    return next();
-  }
+  if (!ADMIN_API_KEY) return next(); // dev only
   const key = (req.header("x-admin-key") || "").trim();
-  if (!key || key !== ADMIN_API_KEY) return res.status(401).json({ error: "Unauthorized (admin key)" });
+  if (!key || key !== ADMIN_API_KEY)
+    return res.status(401).json({ error: "Unauthorized (admin key)" });
   next();
 }
 
@@ -170,9 +176,10 @@ function authMiddleware(req, res, next) {
   const auth = req.header("Authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   if (!token) return res.status(401).json({ error: "Missing token" });
+
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
+    req.user = decoded; // { userId, email }
     next();
   } catch (e) {
     return res.status(401).json({ error: "Invalid token" });
@@ -180,11 +187,15 @@ function authMiddleware(req, res, next) {
 }
 
 function calcTotal(items = []) {
-  return items.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.qty) || 1), 0);
+  return items.reduce(
+    (sum, it) => sum + (Number(it.price) || 0) * (Number(it.qty) || 1),
+    0
+  );
 }
 
 // ---------- EMAIL (optional) ----------
 let mailer = null;
+
 function getMailer() {
   if (!GMAIL_USER || !GMAIL_APP_PASSWORD) return null;
   if (mailer) return mailer;
@@ -193,12 +204,16 @@ function getMailer() {
     service: "gmail",
     auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
   });
+
   return mailer;
 }
 
 async function sendCustomerEmail({ to, subject, text }) {
   const t = getMailer();
-  if (!t) throw new Error("Email not configured (missing GMAIL_USER or GMAIL_APP_PASSWORD).");
+  if (!t)
+    throw new Error(
+      "Email not configured (missing GMAIL_USER or GMAIL_APP_PASSWORD)."
+    );
   if (!to) throw new Error("Customer email is missing.");
 
   await t.sendMail({
@@ -221,10 +236,12 @@ app.get("/api/health", (req, res) => {
     db: mongoose.connection.name,
     adminKeySet: Boolean(ADMIN_API_KEY),
     emailConfigured: Boolean(GMAIL_USER && GMAIL_APP_PASSWORD),
-    collections: {
-      coffee: "yordi_coffee_items",
-      users: "yordi_users",
-      orders: "yordi_orders",
+    yordiIsolation: {
+      coffeeCollection: "yordi_coffee_items",
+      userCollection: "yordi_users",
+      orderCollection: "yordi_orders",
+      models: ["YordiCoffee", "YordiUser", "YordiOrder"],
+      orderUserRef: "YordiUser",
     },
   });
 });
@@ -237,19 +254,23 @@ app.get("/api/admin/verify", requireAdmin, (req, res) => {
 // ---- COFFEE (PUBLIC GET, ADMIN WRITE) ----
 app.get("/api/coffee", async (req, res) => {
   try {
-    const list = await Coffee.find().sort({ createdAt: -1 }).lean();
+    const list = await YordiCoffee.find().sort({ createdAt: -1 }).lean();
     res.json(list);
   } catch (err) {
-    res.status(500).json({ error: "Failed to load coffee", details: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: "Failed to load coffee", details: err?.message || String(err) });
   }
 });
 
 app.post("/api/coffee", requireAdmin, async (req, res) => {
   try {
-    const { name, description = "", category = "coffee", price, image = "" } = req.body || {};
-    if (!name || price === undefined) return res.status(400).json({ error: "name and price are required" });
+    const { name, description = "", category = "coffee", price, image = "" } =
+      req.body || {};
+    if (!name || price === undefined)
+      return res.status(400).json({ error: "name and price are required" });
 
-    const created = await Coffee.create({
+    const created = await YordiCoffee.create({
       name: String(name).trim(),
       description: String(description || "").trim(),
       category: String(category || "coffee").trim(),
@@ -259,14 +280,18 @@ app.post("/api/coffee", requireAdmin, async (req, res) => {
 
     res.json(created);
   } catch (err) {
-    res.status(500).json({ error: "Failed to add coffee", details: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: "Failed to add coffee", details: err?.message || String(err) });
   }
 });
 
 app.put("/api/coffee/:id", requireAdmin, async (req, res) => {
   try {
-    const { name, description = "", category = "coffee", price, image } = req.body || {};
-    if (!name || price === undefined) return res.status(400).json({ error: "name and price are required" });
+    const { name, description = "", category = "coffee", price, image } =
+      req.body || {};
+    if (!name || price === undefined)
+      return res.status(400).json({ error: "name and price are required" });
 
     const update = {
       name: String(name).trim(),
@@ -276,21 +301,27 @@ app.put("/api/coffee/:id", requireAdmin, async (req, res) => {
     };
     if (image !== undefined) update.image = String(image || "");
 
-    const updated = await Coffee.findByIdAndUpdate(req.params.id, update, { new: true });
+    const updated = await YordiCoffee.findByIdAndUpdate(req.params.id, update, {
+      new: true,
+    });
     if (!updated) return res.status(404).json({ error: "Coffee not found" });
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: "Failed to update coffee", details: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: "Failed to update coffee", details: err?.message || String(err) });
   }
 });
 
 app.delete("/api/coffee/:id", requireAdmin, async (req, res) => {
   try {
-    const deleted = await Coffee.findByIdAndDelete(req.params.id);
+    const deleted = await YordiCoffee.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ error: "Coffee not found" });
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: "Failed to delete coffee", details: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: "Failed to delete coffee", details: err?.message || String(err) });
   }
 });
 
@@ -298,41 +329,56 @@ app.delete("/api/coffee/:id", requireAdmin, async (req, res) => {
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { fullName, email, password } = req.body || {};
-    if (!fullName || !email || !password) return res.status(400).json({ error: "fullName, email, password required" });
-    if (String(password).length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
+    if (!fullName || !email || !password)
+      return res.status(400).json({ error: "fullName, email, password required" });
+    if (String(password).length < 6)
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
 
-    const exists = await User.findOne({ email: String(email).toLowerCase().trim() }).lean();
+    const emailNorm = String(email).toLowerCase().trim();
+    const exists = await YordiUser.findOne({ email: emailNorm }).lean();
     if (exists) return res.status(400).json({ error: "Email already registered" });
 
     const passwordHash = await bcrypt.hash(String(password), 10);
-    const user = await User.create({
+    const user = await YordiUser.create({
       fullName: String(fullName).trim(),
-      email: String(email).toLowerCase().trim(),
+      email: emailNorm,
       passwordHash,
     });
 
-    const token = jwt.sign({ userId: String(user._id), email: user.email }, JWT_SECRET, { expiresIn: "30d" });
+    const token = jwt.sign({ userId: String(user._id), email: user.email }, JWT_SECRET, {
+      expiresIn: "30d",
+    });
+
     res.json({ token, user: { fullName: user.fullName, email: user.email } });
   } catch (err) {
-    res.status(500).json({ error: "Register failed", details: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: "Register failed", details: err?.message || String(err) });
   }
 });
 
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body || {};
-    if (!email || !password) return res.status(400).json({ error: "email and password required" });
+    if (!email || !password)
+      return res.status(400).json({ error: "email and password required" });
 
-    const user = await User.findOne({ email: String(email).toLowerCase().trim() });
+    const emailNorm = String(email).toLowerCase().trim();
+    const user = await YordiUser.findOne({ email: emailNorm });
     if (!user) return res.status(400).json({ error: "Invalid email or password" });
 
     const ok = await bcrypt.compare(String(password), user.passwordHash);
     if (!ok) return res.status(400).json({ error: "Invalid email or password" });
 
-    const token = jwt.sign({ userId: String(user._id), email: user.email }, JWT_SECRET, { expiresIn: "30d" });
+    const token = jwt.sign({ userId: String(user._id), email: user.email }, JWT_SECRET, {
+      expiresIn: "30d",
+    });
+
     res.json({ token, user: { fullName: user.fullName, email: user.email } });
   } catch (err) {
-    res.status(500).json({ error: "Login failed", details: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: "Login failed", details: err?.message || String(err) });
   }
 });
 
@@ -352,13 +398,15 @@ app.post("/api/orders", authMiddleware, async (req, res) => {
       telebirrRef = "",
     } = req.body || {};
 
-    if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: "Cart is empty" });
-    if (!fullName || !phone || !address) return res.status(400).json({ error: "fullName, phone, address required" });
+    if (!Array.isArray(items) || items.length === 0)
+      return res.status(400).json({ error: "Cart is empty" });
+    if (!fullName || !phone || !address)
+      return res.status(400).json({ error: "fullName, phone, address required" });
 
     const total = calcTotal(items);
     const orderId = "ORD-" + Date.now();
 
-    const order = await Order.create({
+    const order = await YordiOrder.create({
       orderId,
       userId: req.user.userId,
       items,
@@ -370,26 +418,35 @@ app.post("/api/orders", authMiddleware, async (req, res) => {
 
     res.json({ ok: true, order });
   } catch (err) {
-    res.status(500).json({ error: "Failed to place order", details: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: "Failed to place order", details: err?.message || String(err) });
   }
 });
 
 app.get("/api/orders/my", authMiddleware, async (req, res) => {
   try {
-    const list = await Order.find({ userId: req.user.userId }).sort({ createdAt: -1 }).lean();
+    const list = await YordiOrder.find({ userId: req.user.userId })
+      .sort({ createdAt: -1 })
+      .lean();
+
     res.json(list);
   } catch (err) {
-    res.status(500).json({ error: "Failed to load orders", details: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: "Failed to load orders", details: err?.message || String(err) });
   }
 });
 
 // ---- ADMIN: ALL ORDERS ----
 app.get("/api/admin/orders", requireAdmin, async (req, res) => {
   try {
-    const list = await Order.find().sort({ createdAt: -1 }).lean();
+    const list = await YordiOrder.find().sort({ createdAt: -1 }).lean();
     res.json(list);
   } catch (err) {
-    res.status(500).json({ error: "Failed to load admin orders", details: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: "Failed to load admin orders", details: err?.message || String(err) });
   }
 });
 
@@ -402,12 +459,14 @@ app.put("/api/admin/orders/:id", requireAdmin, async (req, res) => {
     if (status !== undefined) update.status = String(status);
     if (paymentStatus !== undefined) update["payment.status"] = String(paymentStatus);
 
-    const updated = await Order.findByIdAndUpdate(req.params.id, update, { new: true });
+    const updated = await YordiOrder.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!updated) return res.status(404).json({ error: "Order not found" });
 
     res.json({ ok: true, order: updated });
   } catch (err) {
-    res.status(500).json({ error: "Failed to update order", details: err?.message || String(err) });
+    res
+      .status(500)
+      .json({ error: "Failed to update order", details: err?.message || String(err) });
   }
 });
 
@@ -416,11 +475,12 @@ app.post("/api/admin/orders/:id/email", requireAdmin, async (req, res) => {
   try {
     const { template = "custom", message = "", subject = "" } = req.body || {};
 
-    const order = await Order.findById(req.params.id).lean();
+    const order = await YordiOrder.findById(req.params.id).lean();
     if (!order) return res.status(404).json({ error: "Order not found" });
 
     const customerEmail = (order.customer?.email || "").trim();
-    if (!customerEmail) return res.status(400).json({ error: "Customer email is missing on this order" });
+    if (!customerEmail)
+      return res.status(400).json({ error: "Customer email is missing on this order" });
 
     const orderId = order.orderId || "";
     const customerName = order.customer?.fullName || "Customer";
@@ -439,8 +499,6 @@ Payment Status: PAID
 Order Status: ${orderStatus}
 Total: ${total} ETB
 
-If you have any questions, reply to this email.
-
 — ${EMAIL_FROM_NAME}`,
       },
       failed: {
@@ -452,8 +510,6 @@ Payment Status: FAILED
 Payment Method: ${payMethod}
 Order Status: ${orderStatus}
 Total: ${total} ETB
-
-Please reply to this email or resend the payment and share the reference.
 
 Message from admin:
 ${message || "(none)"}
@@ -501,13 +557,10 @@ Total: ${total} ETB
       },
     };
 
-    const picked = templates[String(template || "custom").toLowerCase()] || templates.custom;
+    const picked =
+      templates[String(template || "custom").toLowerCase()] || templates.custom;
 
-    await sendCustomerEmail({
-      to: customerEmail,
-      subject: picked.subject,
-      text: picked.text,
-    });
+    await sendCustomerEmail({ to: customerEmail, subject: picked.subject, text: picked.text });
 
     res.json({ ok: true });
   } catch (err) {
@@ -517,5 +570,5 @@ Total: ${total} ETB
 
 // ---------- START ----------
 app.listen(PORT, () => {
-  console.log(`✅ Server listening on http://localhost:${PORT}`);
+  console.log(`✅ Yordi backend listening on http://localhost:${PORT}`);
 });
