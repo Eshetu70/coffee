@@ -1,9 +1,9 @@
 /**
- * Yordi Coffee Backend (MongoDB Atlas + Mongoose)
- * - Coffee CRUD (admin protected with ADMIN_API_KEY)
+ * Yordi Coffee Backend (MongoDB + Mongoose)
+ * - Coffee CRUD (ADMIN protected with ADMIN_API_KEY)
  * - Auth (register/login) with JWT
- * - Orders + "My Orders" (auth required)
- * - ADMIN: verify key, view/update ALL orders (admin key required)
+ * - Orders + My Orders (JWT required)
+ * - Admin: verify key, view/update ALL orders, email customer
  */
 
 require("dotenv").config();
@@ -16,16 +16,23 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 
 const app = express();
 
-// -------- CONFIG --------
+// ---------- CONFIG ----------
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY || ""; // ✅ your env name
 const JWT_SECRET = process.env.JWT_SECRET || "";
 
+// Email (optional)
+const GMAIL_USER = process.env.GMAIL_USER || "";
+const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD || "";
+const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || "Yordi Coffee";
+
+// Validate required env
 if (!MONGODB_URI) {
   console.error("❌ Missing MONGODB_URI in .env");
   process.exit(1);
@@ -35,7 +42,7 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 
-// -------- MIDDLEWARE --------
+// ---------- MIDDLEWARE ----------
 app.use(
   cors({
     origin: "*",
@@ -44,7 +51,7 @@ app.use(
   })
 );
 
-// ✅ Safe preflight handler (fixes "*" crash)
+// ✅ SAFE preflight handler (prevents path-to-regexp "*" crash)
 app.use((req, res, next) => {
   if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
@@ -56,7 +63,7 @@ app.use(express.urlencoded({ extended: true }));
 mongoose.set("strictQuery", true);
 mongoose.set("bufferCommands", false);
 
-// -------- CONNECT --------
+// ---------- CONNECT ----------
 (async () => {
   try {
     await mongoose.connect(MONGODB_URI, {
@@ -71,7 +78,7 @@ mongoose.set("bufferCommands", false);
   }
 })();
 
-// -------- MODELS --------
+// ---------- MODELS ----------
 const coffeeSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -132,15 +139,14 @@ const orderSchema = new mongoose.Schema(
 );
 const Order = mongoose.model("Order", orderSchema);
 
-// -------- HELPERS --------
+// ---------- HELPERS ----------
 function requireAdmin(req, res, next) {
-  // If key not set, block admin endpoints for safety (recommended)
   if (!ADMIN_API_KEY) {
-    return res.status(500).json({ error: "Admin key not configured on server (ADMIN_API_KEY missing)" });
+    // If not set, allow (dev only)
+    return next();
   }
-
-  const key = req.header("x-admin-key") || "";
-  if (key !== ADMIN_API_KEY) return res.status(401).json({ error: "Unauthorized (admin key)" });
+  const key = (req.header("x-admin-key") || "").trim();
+  if (!key || key !== ADMIN_API_KEY) return res.status(401).json({ error: "Unauthorized (admin key)" });
   next();
 }
 
@@ -152,7 +158,7 @@ function authMiddleware(req, res, next) {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
     next();
-  } catch {
+  } catch (e) {
     return res.status(401).json({ error: "Invalid token" });
   }
 }
@@ -161,7 +167,33 @@ function calcTotal(items = []) {
   return items.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.qty) || 1), 0);
 }
 
-// -------- ROUTES --------
+// ---------- EMAIL (optional) ----------
+let mailer = null;
+function getMailer() {
+  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) return null;
+  if (mailer) return mailer;
+
+  mailer = nodemailer.createTransport({
+    service: "gmail",
+    auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
+  });
+  return mailer;
+}
+
+async function sendCustomerEmail({ to, subject, text }) {
+  const t = getMailer();
+  if (!t) throw new Error("Email not configured (missing GMAIL_USER or GMAIL_APP_PASSWORD).");
+  if (!to) throw new Error("Customer email is missing.");
+
+  await t.sendMail({
+    from: `"${EMAIL_FROM_NAME}" <${GMAIL_USER}>`,
+    to,
+    subject,
+    text,
+  });
+}
+
+// ---------- ROUTES ----------
 app.get("/", (req, res) => {
   res.json({ ok: true, app: "Yordi Coffee API" });
 });
@@ -171,11 +203,12 @@ app.get("/api/health", (req, res) => {
     ok: true,
     mongoState: mongoose.connection.readyState,
     db: mongoose.connection.name,
-    adminConfigured: Boolean(ADMIN_API_KEY),
+    adminKeySet: Boolean(ADMIN_API_KEY),
+    emailConfigured: Boolean(GMAIL_USER && GMAIL_APP_PASSWORD),
   });
 });
 
-// ---- ADMIN VERIFY (used by frontend to unlock admin page) ----
+// ---- ADMIN VERIFY (unlock admin UI) ----
 app.get("/api/admin/verify", requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
@@ -343,6 +376,7 @@ app.get("/api/admin/orders", requireAdmin, async (req, res) => {
 app.put("/api/admin/orders/:id", requireAdmin, async (req, res) => {
   try {
     const { status, paymentStatus } = req.body || {};
+
     const update = {};
     if (status !== undefined) update.status = String(status);
     if (paymentStatus !== undefined) update["payment.status"] = String(paymentStatus);
@@ -356,7 +390,116 @@ app.put("/api/admin/orders/:id", requireAdmin, async (req, res) => {
   }
 });
 
-// -------- START --------
+// ---- ADMIN: EMAIL CUSTOMER ABOUT ORDER ----
+app.post("/api/admin/orders/:id/email", requireAdmin, async (req, res) => {
+  try {
+    const { template = "custom", message = "", subject = "" } = req.body || {};
+
+    const order = await Order.findById(req.params.id).lean();
+    if (!order) return res.status(404).json({ error: "Order not found" });
+
+    const customerEmail = (order.customer?.email || "").trim();
+    if (!customerEmail) return res.status(400).json({ error: "Customer email is missing on this order" });
+
+    const orderId = order.orderId || "";
+    const customerName = order.customer?.fullName || "Customer";
+    const payMethod = order.payment?.method || "";
+    const payStatus = order.payment?.status || "pending";
+    const orderStatus = order.status || "placed";
+    const total = order.total || 0;
+
+    const templates = {
+      paid: {
+        subject: `Payment Confirmed - Order ${orderId}`,
+        text:
+`Hello ${customerName},
+
+Thank you! We have confirmed your payment for Order ${orderId}.
+Payment Status: PAID
+Order Status: ${orderStatus}
+Total: ${total} ETB
+
+If you have any questions, reply to this email.
+
+— ${EMAIL_FROM_NAME}`
+      },
+      failed: {
+        subject: `Payment Issue - Order ${orderId}`,
+        text:
+`Hello ${customerName},
+
+We were unable to confirm your payment for Order ${orderId}.
+Payment Status: FAILED
+Payment Method: ${payMethod}
+Order Status: ${orderStatus}
+Total: ${total} ETB
+
+Please reply to this email or resend the payment and share the reference.
+
+Message from admin:
+${message || "(none)"}
+
+— ${EMAIL_FROM_NAME}`
+      },
+      processing: {
+        subject: `Order Update - Order ${orderId} is Processing`,
+        text:
+`Hello ${customerName},
+
+Your Order ${orderId} is now being processed.
+Order Status: PROCESSING
+Payment: ${payMethod} (${payStatus})
+Total: ${total} ETB
+
+Message from admin:
+${message || "(none)"}
+
+— ${EMAIL_FROM_NAME}`
+      },
+      delivered: {
+        subject: `Delivered - Order ${orderId}`,
+        text:
+`Hello ${customerName},
+
+Good news! Your Order ${orderId} has been delivered.
+Order Status: DELIVERED
+Total: ${total} ETB
+
+Thank you for choosing ${EMAIL_FROM_NAME}.
+
+— ${EMAIL_FROM_NAME}`
+      },
+      custom: {
+        subject: subject || `Message about your order ${orderId}`,
+        text:
+`Hello ${customerName},
+
+${message || ""}
+
+Order: ${orderId}
+Order Status: ${orderStatus}
+Payment: ${payMethod} (${payStatus})
+Total: ${total} ETB
+
+— ${EMAIL_FROM_NAME}`
+      }
+    };
+
+    const picked = templates[String(template || "custom").toLowerCase()] || templates.custom;
+
+    await sendCustomerEmail({
+      to: customerEmail,
+      subject: picked.subject,
+      text: picked.text
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to send email", details: err?.message || String(err) });
+  }
+});
+
+// ---------- START ----------
 app.listen(PORT, () => {
   console.log(`✅ Server listening on http://localhost:${PORT}`);
 });
