@@ -1,9 +1,9 @@
 /**
  * Yordi Coffee Backend (MongoDB Atlas + Mongoose)
- * - Coffee CRUD (admin protected with ADMIN_KEY)
+ * - Coffee CRUD (admin protected with ADMIN_API_KEY)
  * - Auth (register/login) with JWT
- * - Orders + "My Orders"
- * - Email to admin on new order (Gmail App Password)
+ * - Orders + "My Orders" (auth required)
+ * - ADMIN: verify key, view/update ALL orders (admin key required)
  */
 
 require("dotenv").config();
@@ -16,7 +16,6 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const nodemailer = require("nodemailer");
 
 const app = express();
 
@@ -24,11 +23,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
-const ADMIN_KEY = process.env.ADMIN_KEY || "";          // admin password for CRUD coffee
-const JWT_SECRET = process.env.JWT_SECRET || "";        // for user auth
-const GMAIL_USER = process.env.GMAIL_USER || "";        // your gmail
-const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD || ""; // app password
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || process.env.EMAIL_TO || ""; // send orders here
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || ""; // ✅ your env name
+const JWT_SECRET = process.env.JWT_SECRET || "";
 
 if (!MONGODB_URI) {
   console.error("❌ Missing MONGODB_URI in .env");
@@ -39,7 +35,21 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 
-app.use(cors({ origin: "*", methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], allowedHeaders: ["Content-Type", "Authorization", "x-admin-key"] }));
+// -------- MIDDLEWARE --------
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-admin-key"],
+  })
+);
+
+// ✅ Safe preflight handler (fixes "*" crash)
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -112,11 +122,11 @@ const orderSchema = new mongoose.Schema(
     payment: {
       method: { type: String, default: "cash" }, // cash/card/telebirr
       telebirrRef: { type: String, default: "" },
-      status: { type: String, default: "pending" },
+      status: { type: String, default: "pending" }, // pending/paid/failed
     },
 
     total: { type: Number, default: 0 },
-    status: { type: String, default: "placed" },
+    status: { type: String, default: "placed" }, // placed/processing/delivered/cancelled
   },
   { timestamps: true }
 );
@@ -124,9 +134,13 @@ const Order = mongoose.model("Order", orderSchema);
 
 // -------- HELPERS --------
 function requireAdmin(req, res, next) {
-  if (!ADMIN_KEY) return next(); // dev mode if you forgot to set it
+  // If key not set, block admin endpoints for safety (recommended)
+  if (!ADMIN_API_KEY) {
+    return res.status(500).json({ error: "Admin key not configured on server (ADMIN_API_KEY missing)" });
+  }
+
   const key = req.header("x-admin-key") || "";
-  if (key !== ADMIN_KEY) return res.status(401).json({ error: "Unauthorized (admin key)" });
+  if (key !== ADMIN_API_KEY) return res.status(401).json({ error: "Unauthorized (admin key)" });
   next();
 }
 
@@ -138,77 +152,13 @@ function authMiddleware(req, res, next) {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
     next();
-  } catch (e) {
+  } catch {
     return res.status(401).json({ error: "Invalid token" });
   }
 }
 
 function calcTotal(items = []) {
   return items.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.qty) || 1), 0);
-}
-
-// -------- EMAIL (ADMIN) --------
-let transporter = null;
-function getTransporter() {
-  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) return null;
-  if (transporter) return transporter;
-
-  transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: GMAIL_USER,
-      pass: GMAIL_APP_PASSWORD,
-    },
-  });
-  return transporter;
-}
-
-async function sendAdminOrderEmail(orderDoc) {
-  const t = getTransporter();
-  if (!t) {
-    console.warn("⚠️ Email not configured (missing GMAIL_USER or GMAIL_APP_PASSWORD). Skipping email.");
-    return { ok: false, reason: "Email not configured" };
-  }
-  if (!ADMIN_EMAIL) {
-    console.warn("⚠️ ADMIN_EMAIL not set. Skipping email.");
-    return { ok: false, reason: "ADMIN_EMAIL not set" };
-  }
-
-  const o = orderDoc;
-  const lines = (o.items || []).map((it) => `- ${it.name} (qty ${it.qty}) — ${it.price} ETB`);
-  const customer = o.customer || {};
-
-  const subject = `☕ New Yordi Coffee Order: ${o.orderId}`;
-  const text =
-`New Order Received
-
-Order ID: ${o.orderId}
-Total: ${o.total} ETB
-Payment: ${o.payment?.method || ""}  Ref: ${o.payment?.telebirrRef || ""}
-
-Customer:
-Name: ${customer.fullName || ""}
-Phone: ${customer.phone || ""}
-Email: ${customer.email || ""}
-Address: ${customer.address || ""}, ${customer.city || ""}, ${customer.country || ""}
-
-Notes:
-${customer.notes || ""}
-
-Items:
-${lines.join("\n")}
-
-Placed at: ${new Date(o.createdAt).toLocaleString()}
-`;
-
-  await t.sendMail({
-    from: GMAIL_USER,
-    to: ADMIN_EMAIL,
-    subject,
-    text,
-  });
-
-  return { ok: true };
 }
 
 // -------- ROUTES --------
@@ -221,8 +171,13 @@ app.get("/api/health", (req, res) => {
     ok: true,
     mongoState: mongoose.connection.readyState,
     db: mongoose.connection.name,
-    emailConfigured: Boolean(GMAIL_USER && GMAIL_APP_PASSWORD && ADMIN_EMAIL),
+    adminConfigured: Boolean(ADMIN_API_KEY),
   });
+});
+
+// ---- ADMIN VERIFY (used by frontend to unlock admin page) ----
+app.get("/api/admin/verify", requireAdmin, (req, res) => {
+  res.json({ ok: true });
 });
 
 // ---- COFFEE (PUBLIC GET, ADMIN WRITE) ----
@@ -327,7 +282,7 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-// ---- ORDERS ----
+// ---- ORDERS (CUSTOMER) ----
 app.post("/api/orders", authMiddleware, async (req, res) => {
   try {
     const {
@@ -359,14 +314,6 @@ app.post("/api/orders", authMiddleware, async (req, res) => {
       status: "placed",
     });
 
-    // send email to admin (non-blocking style but awaited for error visibility)
-    try {
-      await sendAdminOrderEmail(order);
-    } catch (mailErr) {
-      console.error("❌ Email send failed:", mailErr?.message || mailErr);
-      // do not fail the order if email fails
-    }
-
     res.json({ ok: true, order });
   } catch (err) {
     res.status(500).json({ error: "Failed to place order", details: err?.message || String(err) });
@@ -379,6 +326,33 @@ app.get("/api/orders/my", authMiddleware, async (req, res) => {
     res.json(list);
   } catch (err) {
     res.status(500).json({ error: "Failed to load orders", details: err?.message || String(err) });
+  }
+});
+
+// ---- ADMIN: ALL ORDERS ----
+app.get("/api/admin/orders", requireAdmin, async (req, res) => {
+  try {
+    const list = await Order.find().sort({ createdAt: -1 }).lean();
+    res.json(list);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to load admin orders", details: err?.message || String(err) });
+  }
+});
+
+// ---- ADMIN: UPDATE ORDER ----
+app.put("/api/admin/orders/:id", requireAdmin, async (req, res) => {
+  try {
+    const { status, paymentStatus } = req.body || {};
+    const update = {};
+    if (status !== undefined) update.status = String(status);
+    if (paymentStatus !== undefined) update["payment.status"] = String(paymentStatus);
+
+    const updated = await Order.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!updated) return res.status(404).json({ error: "Order not found" });
+
+    res.json({ ok: true, order: updated });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update order", details: err?.message || String(err) });
   }
 });
 
