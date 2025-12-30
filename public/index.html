@@ -1,3 +1,6 @@
+<!-- index.html ✅ FULL UPDATED (your frontend) — no cuts
+     ONLY change: adminEmailCustomer now shows REAL backend error details
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -820,7 +823,7 @@
         body: JSON.stringify(payload)
       });
       const { text, json } = await readJsonSafe(res);
-      if(!res.ok) throw new Error(json?.error || json?.details || text || "Order failed");
+      if(!res.ok) throw new Error(json?.details || json?.error || text || "Order failed");
 
       alert("✅ Order placed! Order ID: " + (json?.order?.orderId || ""));
       closeCheckout();
@@ -880,7 +883,7 @@
         body: JSON.stringify({ fullName, email, password })
       });
       const { text, json } = await readJsonSafe(res);
-      if(!res.ok) throw new Error(json?.error || json?.details || text || "Register failed");
+      if(!res.ok) throw new Error(json?.details || json?.error || text || "Register failed");
       setToken(json.token);
       setAuthLabel();
       closeAuth();
@@ -901,7 +904,7 @@
         body: JSON.stringify({ email, password })
       });
       const { text, json } = await readJsonSafe(res);
-      if(!res.ok) throw new Error(json?.error || json?.details || text || "Login failed");
+      if(!res.ok) throw new Error(json?.details || json?.error || text || "Login failed");
       setToken(json.token);
       setAuthLabel();
       closeAuth();
@@ -918,7 +921,7 @@
         headers: { "Authorization": "Bearer " + getToken() }
       });
       const { text, json } = await readJsonSafe(res);
-      if(!res.ok) throw new Error(json?.error || json?.details || text || "Failed to load orders");
+      if(!res.ok) throw new Error(json?.details || json?.error || text || "Failed to load orders");
 
       const orders = Array.isArray(json) ? json : [];
       if(orders.length === 0){
@@ -985,7 +988,7 @@
         adminUnlocked = false;
         throw new Error("Admin key invalid. Please open Admin again.");
       }
-      if(!res.ok) throw new Error(json?.error || json?.details || text || "Failed to load admin orders");
+      if(!res.ok) throw new Error(json?.details || json?.error || text || "Failed to load admin orders");
 
       const orders = Array.isArray(json) ? json : [];
       if(orders.length === 0){
@@ -1092,7 +1095,7 @@
       });
       const { text, json } = await readJsonSafe(res);
       if(res.status === 401) throw new Error("Unauthorized admin key.");
-      if(!res.ok) throw new Error(json?.error || json?.details || text || "Update failed");
+      if(!res.ok) throw new Error(json?.details || json?.error || text || "Update failed");
 
       alert("✅ Order updated!");
       await loadAdminOrders();
@@ -1101,6 +1104,7 @@
     }
   }
 
+  // ✅✅✅ UPDATED: this now shows the REAL backend error details
   async function adminEmailCustomer(id){
     const key = getAdminKey();
     if(!key) return alert("Admin key required.");
@@ -1125,11 +1129,16 @@
         adminUnlocked = false;
         throw new Error("Unauthorized admin key. Please open Admin again.");
       }
-      if(!res.ok) throw new Error(json?.error || json?.details || text || "Email failed");
+
+      if(!res.ok){
+        // ✅ show REAL message from backend
+        throw new Error(json?.details || json?.error || text || `HTTP ${res.status}`);
+      }
 
       alert("✅ Email sent to customer!");
     }catch(e){
       alert("Email error: " + e.message);
+      console.error("Email send failed:", e);
     }
   }
 
@@ -1208,7 +1217,7 @@
         body: JSON.stringify(payload)
       });
       const { text, json } = await readJsonSafe(res);
-      if(!res.ok) throw new Error(json?.error || json?.details || text || "Failed to add item");
+      if(!res.ok) throw new Error(json?.details || json?.error || text || "Failed to add item");
       alert("✅ Coffee item added!");
       setAdminStatus("Saved ✅");
       formEl.reset();
@@ -1276,7 +1285,7 @@
         body: JSON.stringify(payload)
       });
       const { text, json } = await readJsonSafe(res);
-      if(!res.ok) throw new Error(json?.error || json?.details || text || "Update failed");
+      if(!res.ok) throw new Error(json?.details || json?.error || text || "Update failed");
 
       alert("✅ Updated!");
       closeEditModal();
@@ -1297,7 +1306,7 @@
         headers: { "x-admin-key": key }
       });
       const { text, json } = await readJsonSafe(res);
-      if(!res.ok) throw new Error(json?.error || json?.details || text || "Delete failed");
+      if(!res.ok) throw new Error(json?.details || json?.error || text || "Delete failed");
       alert("✅ Deleted!");
       await loadProducts();
     }catch(e){

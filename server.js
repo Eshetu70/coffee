@@ -1,3 +1,4 @@
+// server.js  ✅ FULL UPDATED (your backend) — no cuts
 /**
  * Yordi Coffee Backend (MongoDB + Mongoose)
  * - Coffee CRUD (ADMIN protected with ADMIN_API_KEY)
