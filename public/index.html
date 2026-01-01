@@ -1,319 +1,806 @@
-<!-- index.html ✅ FULL UPDATED (your frontend) — no cuts
-     ONLY change: adminEmailCustomer now shows REAL backend error details
+<!-- index.html ✅ FULL UPDATED (Yordi Coffee frontend) — professional UI/UX, smoother scroll, better mobile
+     ✅ Keeps your same backend endpoints + JS functions
+     ✅ Fixes: duplicate meta/title, improves layout, adds mobile menu, sticky category bar, better cards/modals
 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
-  <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-
-<title>Yordi Coffee - Online Shopping</title>
-<meta name="description" content="Fresh coffee products — beans, ground coffee, espresso & accessories." />
-
-<!-- Open Graph (Facebook) -->
-<meta property="og:type" content="website" />
-<meta property="og:title" content="Yordi Coffee — Fresh Coffee Delivered" />
-<meta property="og:description" content="Beans • Ground • Espresso • Traditional • Accessories available at Yordi Coffee" />
-<meta property="og:url" content="https://eshetu70.github.io/coffee/public/index.html" />
-<meta property="og:image" content="https://eshetu70.github.io/coffee/public/images/og-coffee.png" />
-<meta property="og:site_name" content="Yordi Coffee" />
-<meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />
-
-<!-- Optional: Twitter preview -->
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="Yordi Coffee — Fresh Coffee Delivered" />
-<meta name="twitter:description" content="Beans • Ground • Espresso • Traditional • Accessories" />
-<meta name="twitter:image" content="https://eshetu70.github.io/coffee/public/images/og-coffee.jpg" />
-
-
-
-
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Yordi Coffee - Online Shopping</title>
+  <title>Yordi Coffee — Online Shopping</title>
+  <meta name="description" content="Fresh coffee products — beans, ground coffee, espresso, traditional coffee & accessories." />
+
+  <!-- Open Graph (Facebook) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Yordi Coffee — Fresh Coffee Delivered" />
+  <meta property="og:description" content="Beans • Ground • Espresso • Traditional • Accessories available at Yordi Coffee" />
+  <meta property="og:url" content="https://eshetu70.github.io/coffee/public/index.html" />
+  <meta property="og:image" content="https://eshetu70.github.io/coffee/public/images/og-coffee.png" />
+  <meta property="og:site_name" content="Yordi Coffee" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Yordi Coffee — Fresh Coffee Delivered" />
+  <meta name="twitter:description" content="Beans • Ground • Espresso • Traditional • Accessories" />
+  <meta name="twitter:image" content="https://eshetu70.github.io/coffee/public/images/og-coffee.jpg" />
 
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height:1.6; color:#1a1a1a; background:#fff; }
+    :root{
+      --bg:#0b0f14;
+      --surface:#0f1620;
+      --card:#121b27;
+      --card2:#0f1824;
+      --text:#eaf0ff;
+      --muted:#a9b6d2;
+      --muted2:#7f8aa3;
+      --border:rgba(255,255,255,.10);
+      --shadow: 0 14px 40px rgba(0,0,0,.35);
 
-    .header{
-      background: linear-gradient(135deg, #4b2e2a 0%, #1b0f0d 100%);
-      color:#fff; padding:1rem 0; position:sticky; top:0; z-index:1000;
-      box-shadow:0 4px 20px rgba(0,0,0,0.28);
+      --coffee1:#7a4a2f;
+      --coffee2:#3a1d16;
+      --accent:#d7a36a;
+      --accent2:#ffcf8a;
+
+      --good:#35c980;
+      --bad:#ff5b5b;
+      --warn:#ffb020;
+
+      --radius:18px;
+      --radius2:14px;
+      --container:1200px;
+      --headerH:72px;
     }
-    .nav-container{ max-width:1400px; margin:0 auto; padding:0 2rem; display:flex; justify-content:space-between; align-items:center; gap:1rem; }
-    .logo{ font-size:1.75rem; font-weight:900; color:#fff; text-decoration:none; cursor:pointer; user-select:none; }
-    .nav-menu{ display:flex; list-style:none; gap:1.05rem; align-items:center; flex-wrap:wrap; }
-    .nav-menu a{ color:#fff; text-decoration:none; font-weight:900; opacity:0.95; cursor:pointer; }
-    .nav-menu a:hover{ opacity:1; text-decoration:underline; }
 
-    .pill{
-      border:1px solid rgba(255,255,255,0.25);
-      padding:0.45rem 0.85rem; border-radius:999px;
-      display:inline-flex; align-items:center; gap:0.5rem;
-      cursor:pointer; user-select:none;
-    }
-    .pill:hover{ border-color: rgba(255,255,255,0.5); }
-    .cart-count{ background:#e74c3c; color:#fff; border-radius:50%; width:20px; height:20px; font-size:0.75rem; display:inline-flex; align-items:center; justify-content:center; margin-left:0.35rem; }
-
-    .hero{
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      color:var(--text);
       background:
-        linear-gradient(135deg, rgba(0,0,0,0.58), rgba(0,0,0,0.25)),
-        url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600"><rect fill="%236b3f2a" width="1200" height="600"/></svg>');
-      background-size:cover;
-      color:#fff; padding:5.2rem 2rem 3.6rem; text-align:center;
+        radial-gradient(1200px 600px at 10% -10%, rgba(215,163,106,.20), transparent 60%),
+        radial-gradient(900px 500px at 90% 0%, rgba(122,74,47,.25), transparent 60%),
+        linear-gradient(180deg, #070a0f 0%, #0b0f14 35%, #0b0f14 100%);
+      overflow-x:hidden;
     }
-    .hero h1{ font-size:3rem; margin-bottom:0.8rem; font-weight:1000; }
-    .hero p{ font-size:1.05rem; opacity:0.95; }
 
-    .filter-section{ background:#f8f9fa; padding:1.1rem; border-bottom:2px solid #ddd; }
-    .filter-container{ max-width:1400px; margin:0 auto; display:flex; gap:0.75rem; flex-wrap:wrap; padding:0 0.5rem; }
-    .filter-btn{
-      padding:0.65rem 1.15rem; border:2px solid #4b2e2a;
-      background:#fff; color:#4b2e2a; border-radius:25px;
-      cursor:pointer; font-weight:900;
+    a{ color:inherit; text-decoration:none; }
+    button, input, textarea, select{ font:inherit; }
+    .container{ max-width:var(--container); margin:0 auto; padding:0 18px; }
+
+    /* ---------- HEADER ---------- */
+    .header{
+      position:sticky; top:0; z-index:1200;
+      height:var(--headerH);
+      backdrop-filter: blur(14px);
+      background: linear-gradient(180deg, rgba(15,22,32,.85) 0%, rgba(15,22,32,.60) 100%);
+      border-bottom:1px solid var(--border);
     }
-    .filter-btn.active{ background:#4b2e2a; color:#fff; }
-
-    .products-grid{
-      display:grid;
-      grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));
-      gap:1.6rem; max-width:1400px; margin:2rem auto 3rem; padding:0 2rem;
+    .nav{
+      height:100%;
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
     }
-    .product-card{
-      background:#fff; border-radius:15px; overflow:hidden;
-      box-shadow:0 5px 20px rgba(0,0,0,0.10);
-      transition:all 0.25s;
+    .brand{
+      display:flex; align-items:center; gap:10px;
+      font-weight:1000; letter-spacing:.2px;
+      user-select:none; cursor:pointer;
     }
-    .product-card:hover{ transform:translateY(-6px); }
-    .product-image{ width:100%; height:320px; overflow:hidden; background:#f1f1f1; }
-    .product-image img{ width:100%; height:100%; object-fit:cover; }
+    .brand-badge{
+      width:38px; height:38px; border-radius:12px;
+      display:grid; place-items:center;
+      background: linear-gradient(135deg, rgba(215,163,106,.25), rgba(122,74,47,.25));
+      border:1px solid rgba(215,163,106,.25);
+      box-shadow: 0 10px 25px rgba(0,0,0,.25);
+    }
+    .brand-title{ display:flex; flex-direction:column; line-height:1.05; }
+    .brand-title b{ font-size:15px; }
+    .brand-title span{ font-size:12px; color:var(--muted); font-weight:800; }
 
-    .product-details{ padding:1.1rem 1.2rem 1.25rem; }
-    .product-category{ font-size:0.82rem; color:#636e72; text-transform:uppercase; font-weight:900; }
-    .product-name{ font-size:1.15rem; font-weight:1000; margin:0.35rem 0; }
-    .product-price{ font-size:1.35rem; font-weight:1000; color:#e74c3c; margin:0.8rem 0 0.9rem; }
+    .nav-actions{ display:flex; align-items:center; gap:10px; }
+    .nav-links{
+      display:flex; align-items:center; gap:10px;
+    }
 
-    .btn{ border:none; border-radius:10px; font-weight:1000; cursor:pointer; }
-    .btn-dark{ background:#4b2e2a; color:#fff; padding:0.85rem; width:100%; }
+    .chip{
+      display:inline-flex; align-items:center; gap:10px;
+      padding:10px 12px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background: rgba(18,27,39,.55);
+      cursor:pointer;
+      font-weight:950;
+      transition: transform .15s ease, border-color .15s ease, background .15s ease;
+      user-select:none;
+    }
+    .chip:hover{ transform: translateY(-1px); border-color: rgba(215,163,106,.35); background: rgba(18,27,39,.75); }
+    .chip small{ color:var(--muted); font-weight:900; }
+
+    .count{
+      width:22px; height:22px; border-radius:999px;
+      display:grid; place-items:center;
+      background: var(--bad); color:white;
+      font-size:12px; font-weight:1000;
+      margin-left:2px;
+    }
+
+    .btn{
+      border:0; cursor:pointer; font-weight:1000;
+      border-radius:14px;
+      padding:12px 14px;
+      transition: transform .15s ease, filter .15s ease, background .15s ease, border-color .15s ease;
+      user-select:none;
+    }
+    .btn:active{ transform: translateY(1px); }
     .btn-primary{
-      padding:0.85rem 1rem;
-      background: linear-gradient(135deg, #8b5a2b 0%, #4b2e2a 100%);
-      color:#fff; border:none; border-radius:10px; font-weight:1000; cursor:pointer;
+      color:#1b120c;
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      box-shadow: 0 12px 30px rgba(215,163,106,.18);
     }
-    .btn-danger{ padding:0.7rem 1rem; background:#e74c3c; color:#fff; border:none; border-radius:10px; font-weight:1000; cursor:pointer; }
-    .btn-ghost{ padding:0.7rem 1rem; background:#f1f3f5; color:#1a1a1a; border:none; border-radius:10px; font-weight:1000; cursor:pointer; }
-
-    .hidden{ display:none !important; }
-    .loading{ text-align:center; padding:3rem; font-size:1.1rem; color:#636e72; }
-
-    .panel{ max-width:1100px; margin:2rem auto 3rem; padding:0 2rem; }
-    .card{ background:#fff; border-radius:18px; box-shadow:0 10px 35px rgba(0,0,0,0.08); padding:1.25rem; }
-
-    .admin-panel{ max-width:1000px; margin:2rem auto 3rem; padding:2rem; background:#fff; border-radius:20px; box-shadow:0 10px 40px rgba(0,0,0,0.1); }
-    .image-upload-area{ border:3px dashed #ddd; border-radius:12px; padding:2rem; text-align:center; cursor:pointer; }
-    .image-preview{ max-width:100%; max-height:280px; margin-top:1rem; border-radius:10px; }
-    .product-list{ margin-top:1.5rem; }
-    .product-item{ background:#fff; padding:1rem; border-radius:14px; margin-bottom:1rem; box-shadow:0 3px 10px rgba(0,0,0,0.08); display:flex; gap:1rem; align-items:center; }
-    .product-item-image{ width:92px; height:92px; border-radius:10px; overflow:hidden; background:#f1f1f1; }
-    .product-item-image img{ width:100%; height:100%; object-fit:cover; }
-    .product-item-details{ flex:1; }
-    .product-actions{ display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:flex-end; }
-
-    .modal-backdrop{
-      position:fixed; inset:0; background: rgba(0,0,0,0.55);
-      display:flex; align-items:center; justify-content:center;
-      padding:1rem; z-index:2000;
+    .btn-ghost{
+      color:var(--text);
+      background: rgba(255,255,255,.06);
+      border:1px solid var(--border);
     }
-    .modal{
-      width:min(560px, 100%);
-      background:#fff; border-radius:18px;
-      box-shadow:0 20px 60px rgba(0,0,0,0.25);
-      padding:1.25rem;
-    }
-    .modal .muted{ color:#636e72; font-size:0.95rem; margin-bottom:1rem; }
-    .modal .actions{ display:flex; gap:0.75rem; flex-wrap:wrap; margin-top:1rem; }
-    .hr{ height:1px; background:#eee; margin:1rem 0; }
-    .link{ color:#8b5a2b; font-weight:1000; cursor:pointer; }
-
-    .drawer-backdrop{ position:fixed; inset:0; background: rgba(0,0,0,0.45); z-index:2500; display:flex; justify-content:flex-end; }
-    .drawer{ width:min(420px, 100%); height:100%; background:#fff; padding:1rem; overflow:auto; box-shadow:-20px 0 60px rgba(0,0,0,0.2); }
-    .cart-item{ display:flex; gap:0.75rem; padding:0.85rem 0; border-bottom:1px solid #eee; align-items:center; position:relative; }
-    .cart-thumb{ width:72px; height:72px; border-radius:12px; overflow:hidden; background:#f1f1f1; flex:0 0 auto; }
-    .cart-thumb img{ width:100%; height:100%; object-fit:cover; }
-    .qty{ display:flex; align-items:center; gap:0.5rem; margin-top:0.35rem; }
-    .qty button{ width:34px; height:34px; border-radius:10px; border:1px solid #ddd; background:#fff; font-weight:1000; cursor:pointer; }
-    .qty span{ font-weight:1000; min-width:24px; text-align:center; display:inline-block; }
-    .remove-x{
-      position:absolute; top:10px; right:8px; width:30px; height:30px;
-      border-radius:10px; border:1px solid rgba(231,76,60,0.35);
-      background: rgba(231,76,60,0.08); color:#e74c3c; font-weight:1000;
-      cursor:pointer; display:flex; align-items:center; justify-content:center; user-select:none;
+    .btn-danger{
+      color:#fff;
+      background: rgba(255,91,91,.92);
     }
 
-    .footer{ margin-top:2rem; background:#0b0b0b; color:#fff; padding:2rem 1.5rem; }
-    .footer-inner{
-      max-width:1400px; margin:0 auto;
-      display:grid; grid-template-columns:1.2fr 1fr 1fr; gap:1.2rem;
-    }
-    .footer p, .footer a{ color: rgba(255,255,255,0.85); text-decoration:none; }
-    .footer a:hover{ text-decoration:underline; }
-    .footer-bottom{
-      max-width:1400px; margin:1.25rem auto 0; padding-top:1rem;
-      border-top:1px solid rgba(255,255,255,0.12);
-      font-size:0.95rem; color: rgba(255,255,255,0.75);
-    }
-    @media (max-width:900px){ .footer-inner{ grid-template-columns:1fr; } }
-    @media (max-width:768px){
-      .hero h1{ font-size:2.1rem; }
-      .products-grid{ padding:0 1rem; }
-      .nav-container{ padding:0 1rem; }
+    .hamburger{
+      display:none;
+      width:44px; height:44px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      cursor:pointer;
     }
 
+    /* ---------- HERO ---------- */
+    .hero{
+      padding:22px 0 10px;
+    }
+    .hero-card{
+      border:1px solid var(--border);
+      border-radius:24px;
+      overflow:hidden;
+      background:
+        radial-gradient(900px 500px at 0% 0%, rgba(215,163,106,.18), transparent 60%),
+        radial-gradient(700px 380px at 100% 10%, rgba(122,74,47,.25), transparent 60%),
+        linear-gradient(135deg, rgba(18,27,39,.72), rgba(18,27,39,.45));
+      box-shadow: var(--shadow);
+    }
+    .hero-inner{
+      padding:28px 18px;
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:16px;
+      align-items:center;
+    }
+    .hero h1{
+      margin:0 0 8px;
+      font-size: clamp(26px, 2.8vw, 44px);
+      letter-spacing: .2px;
+      font-weight:1100;
+    }
+    .hero p{
+      margin:0;
+      color:rgba(234,240,255,.86);
+      font-weight:850;
+      line-height:1.55;
+    }
+    .hero-bullets{
+      margin-top:12px;
+      display:flex; flex-wrap:wrap; gap:8px;
+    }
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid rgba(215,163,106,.22);
+      background: rgba(215,163,106,.08);
+      color:rgba(255,236,215,.95);
+      font-weight:950;
+      font-size:13px;
+    }
+    .hero-cta{
+      display:flex; gap:10px; flex-wrap:wrap; margin-top:16px;
+    }
+
+    .hero-side{
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(15,22,32,.55);
+      border-radius:20px;
+      padding:16px;
+    }
+    .hero-side h3{ margin:0 0 8px; font-size:16px; font-weight:1050; }
+    .hero-side .muted{ color:var(--muted); font-weight:900; font-size:13px; }
+    .hero-side .row{
+      display:flex; justify-content:space-between; gap:10px;
+      padding:10px 0;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      font-weight:950;
+    }
+    .hero-side .row:last-child{ border-bottom:0; padding-bottom:0; }
+    .tag{
+      font-size:12px; font-weight:1000;
+      padding:6px 10px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.05);
+      color:rgba(234,240,255,.90);
+      display:inline-flex; align-items:center; gap:6px;
+    }
+
+    /* ---------- TOOLBAR (Search + Filters) ---------- */
+    .toolbar-wrap{
+      position:sticky;
+      top:var(--headerH);
+      z-index:1100;
+      border-bottom:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(11,15,20,.92), rgba(11,15,20,.70));
+      backdrop-filter: blur(14px);
+    }
+    .toolbar{
+      padding:12px 0;
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      flex-wrap:wrap;
+    }
+    .search{
+      flex:1;
+      min-width:240px;
+      display:flex; gap:10px; align-items:center;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.05);
+      border-radius:16px;
+      padding:10px 12px;
+    }
+    .search input{
+      width:100%;
+      background: transparent;
+      border:0;
+      outline:none;
+      color:var(--text);
+      font-weight:900;
+    }
+    .search input::placeholder{ color: rgba(169,182,210,.8); }
+
+    .filters{
+      display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+    }
+    .filter-btn{
+      padding:10px 12px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.05);
+      color: rgba(234,240,255,.92);
+      cursor:pointer;
+      font-weight:1000;
+      transition: transform .15s ease, border-color .15s ease, background .15s ease;
+    }
+    .filter-btn:hover{ transform: translateY(-1px); border-color: rgba(215,163,106,.28); }
+    .filter-btn.active{
+      background: rgba(215,163,106,.14);
+      border-color: rgba(215,163,106,.30);
+      color: rgba(255,240,220,.98);
+    }
+
+    /* ---------- PRODUCTS ---------- */
+    .main{ padding:18px 0 50px; }
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap:14px;
+    }
+    .cardp{
+      grid-column: span 4;
+      border:1px solid rgba(255,255,255,.10);
+      background: linear-gradient(180deg, rgba(18,27,39,.75), rgba(18,27,39,.55));
+      border-radius:20px;
+      overflow:hidden;
+      box-shadow: 0 10px 26px rgba(0,0,0,.25);
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+      position:relative;
+    }
+    .cardp:hover{ transform: translateY(-4px); border-color: rgba(215,163,106,.22); }
+    .img{
+      height:260px; background: rgba(255,255,255,.04);
+      overflow:hidden; position:relative;
+    }
+    .img img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .img:after{
+      content:"";
+      position:absolute; inset:0;
+      background: linear-gradient(180deg, transparent 60%, rgba(0,0,0,.45));
+      pointer-events:none;
+    }
+    .badge{
+      position:absolute; top:12px; left:12px;
+      padding:8px 10px;
+      border-radius:999px;
+      background: rgba(11,15,20,.65);
+      border:1px solid rgba(255,255,255,.10);
+      font-weight:1000;
+      font-size:12px;
+      color: rgba(234,240,255,.92);
+      backdrop-filter: blur(8px);
+    }
+    .content{ padding:14px; }
+    .name{
+      font-weight:1100;
+      font-size:16px;
+      margin:0;
+    }
+    .desc{
+      margin:8px 0 0;
+      color: rgba(169,182,210,.92);
+      font-weight:850;
+      font-size:13px;
+      line-height:1.5;
+      min-height: 38px;
+    }
+    .row2{
+      margin-top:12px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .price{
+      font-weight:1150;
+      font-size:18px;
+      color: rgba(255,236,215,.98);
+    }
+    .add{
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(215,163,106,.24);
+      background: rgba(215,163,106,.12);
+      color: rgba(255,240,220,.98);
+      font-weight:1100;
+      cursor:pointer;
+    }
+    .add:hover{ background: rgba(215,163,106,.16); }
+
+    .loading{
+      margin:18px auto 0;
+      padding:16px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      color: rgba(169,182,210,.92);
+      font-weight:900;
+      max-width: var(--container);
+    }
+
+    /* ---------- PANELS / ADMIN ---------- */
+    .panel{ padding:18px 0 50px; }
+    .panel-card{
+      border:1px solid rgba(255,255,255,.10);
+      background: linear-gradient(180deg, rgba(18,27,39,.75), rgba(18,27,39,.55));
+      border-radius:22px;
+      box-shadow: var(--shadow);
+      padding:16px;
+    }
+    .panel-head{
+      display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
+      margin-bottom:10px;
+    }
+    .panel-head h2{ margin:0; font-size:18px; font-weight:1100; }
+    .subtext{ margin:0; color: rgba(169,182,210,.90); font-weight:850; }
+
+    .admin-panel{
+      border:1px solid rgba(255,255,255,.10);
+      background: linear-gradient(180deg, rgba(18,27,39,.75), rgba(18,27,39,.55));
+      border-radius:22px;
+      box-shadow: var(--shadow);
+      padding:16px;
+    }
+
+    label{ display:block; margin-top:10px; font-weight:1000; color: rgba(234,240,255,.95); }
     input, textarea, select{
       width:100%;
-      padding:0.75rem 0.85rem;
-      border:1px solid #ddd;
-      border-radius:12px;
+      margin-top:6px;
+      padding:12px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.05);
+      color: var(--text);
       outline:none;
-      margin-top:0.35rem;
+      font-weight:900;
     }
-    label{ font-weight:900; color:#1a1a1a; display:block; margin-top:0.65rem; }
+    textarea{ resize: vertical; }
+    select option{ color:#111; }
+
+    .image-upload-area{
+      margin-top:10px;
+      border:1px dashed rgba(255,255,255,.18);
+      border-radius:18px;
+      padding:14px;
+      background: rgba(255,255,255,.04);
+      cursor:pointer;
+      transition: border-color .15s ease, background .15s ease;
+    }
+    .image-upload-area:hover{ border-color: rgba(215,163,106,.28); background: rgba(255,255,255,.05); }
+    .image-preview{ width:100%; max-height:280px; object-fit:cover; border-radius:16px; margin-top:10px; border:1px solid rgba(255,255,255,.10); }
+
+    .list{ margin-top:12px; }
+    .item{
+      display:flex; gap:12px; align-items:center;
+      padding:12px;
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:18px;
+      background: rgba(255,255,255,.04);
+      margin-bottom:10px;
+    }
+    .thumb{
+      width:74px; height:74px; border-radius:16px; overflow:hidden;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.10);
+      flex:0 0 auto;
+    }
+    .thumb img{ width:100%; height:100%; object-fit:cover; }
+    .item .meta{ flex:1; }
+    .item .meta h3{ margin:0; font-size:15px; font-weight:1100; }
+    .item .meta p{ margin:6px 0 0; color: rgba(169,182,210,.90); font-weight:850; font-size:13px; }
+    .item .actions{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+
+    .hidden{ display:none !important; }
+
+    /* ---------- MODALS / DRAWER ---------- */
+    .backdrop{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,.58);
+      display:flex; align-items:center; justify-content:center;
+      padding:18px;
+      z-index:3000;
+    }
+    .modal{
+      width:min(740px, 100%);
+      border-radius:22px;
+      border:1px solid rgba(255,255,255,.10);
+      background: linear-gradient(180deg, rgba(18,27,39,.92), rgba(18,27,39,.80));
+      box-shadow: 0 25px 80px rgba(0,0,0,.55);
+      padding:14px;
+    }
+    .modal-head{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .modal-head h2{ margin:0; font-size:18px; font-weight:1100; }
+    .muted{ color: rgba(169,182,210,.92); font-weight:850; font-size:13px; margin:6px 0 0; }
+    .hr{ height:1px; background: rgba(255,255,255,.10); margin:12px 0; }
+    .actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+
+    .drawer-backdrop{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,.55);
+      z-index:3500;
+      display:flex; justify-content:flex-end;
+    }
+    .drawer{
+      width:min(420px, 100%);
+      height:100%;
+      background: linear-gradient(180deg, rgba(18,27,39,.95), rgba(18,27,39,.85));
+      border-left:1px solid rgba(255,255,255,.10);
+      padding:14px;
+      overflow:auto;
+    }
+    .cart-item{
+      display:flex; gap:12px; align-items:center;
+      padding:12px 0;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      position:relative;
+    }
+    .cart-thumb{
+      width:66px; height:66px;
+      border-radius:16px; overflow:hidden;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.10);
+      flex:0 0 auto;
+    }
+    .cart-thumb img{ width:100%; height:100%; object-fit:cover; }
+    .qty{
+      display:flex; gap:8px; align-items:center;
+      margin-top:6px;
+    }
+    .qty button{
+      width:34px; height:34px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.05);
+      color: var(--text);
+      font-weight:1100;
+      cursor:pointer;
+    }
+    .qty span{ min-width:24px; text-align:center; font-weight:1100; }
+    .remove-x{
+      position:absolute; right:0; top:10px;
+      width:34px; height:34px;
+      border-radius:12px;
+      border:1px solid rgba(255,91,91,.35);
+      background: rgba(255,91,91,.12);
+      color: rgba(255,210,210,.98);
+      font-weight:1100;
+      cursor:pointer;
+      display:grid; place-items:center;
+    }
+
+    /* ---------- FOOTER ---------- */
+    .footer{
+      border-top:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.22);
+      padding:24px 0;
+      color: rgba(234,240,255,.92);
+    }
+    .footer-grid{
+      display:grid;
+      grid-template-columns: 1.2fr 1fr 1fr;
+      gap:14px;
+    }
+    .footer h3{ margin:0 0 10px; font-weight:1100; }
+    .footer p{ margin:0; color: rgba(169,182,210,.90); font-weight:850; line-height:1.6; }
+    .footer a{ color: rgba(255,236,215,.95); font-weight:950; }
+    .footer-bottom{
+      margin-top:16px;
+      padding-top:12px;
+      border-top:1px solid rgba(255,255,255,.08);
+      color: rgba(169,182,210,.90);
+      font-weight:850;
+      font-size:13px;
+    }
+
+    /* ---------- MOBILE ---------- */
+    @media (max-width: 980px){
+      .cardp{ grid-column: span 6; }
+      .hero-inner{ grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px){
+      :root{ --headerH:68px; }
+      .cardp{ grid-column: span 12; }
+      .nav-links{ display:none; }
+      .hamburger{ display:inline-grid; place-items:center; }
+      .footer-grid{ grid-template-columns:1fr; }
+    }
+
+    /* mobile menu */
+    .mobile-menu{
+      position:fixed; inset:0;
+      z-index:2000;
+      background: rgba(0,0,0,.60);
+      display:flex; justify-content:center; align-items:flex-start;
+      padding:16px;
+    }
+    .mobile-sheet{
+      width:min(520px, 100%);
+      margin-top:10px;
+      border-radius:22px;
+      border:1px solid rgba(255,255,255,.10);
+      background: linear-gradient(180deg, rgba(18,27,39,.96), rgba(18,27,39,.86));
+      box-shadow: 0 25px 80px rgba(0,0,0,.55);
+      overflow:hidden;
+    }
+    .mobile-sheet .top{
+      display:flex; justify-content:space-between; align-items:center;
+      padding:12px 12px;
+      border-bottom:1px solid rgba(255,255,255,.10);
+    }
+    .mobile-sheet .links{
+      padding:12px;
+      display:grid;
+      gap:10px;
+    }
+    .mobile-sheet .links .btn{ width:100%; text-align:left; }
   </style>
 </head>
 
 <body>
+  <!-- HEADER -->
   <header class="header">
-    <nav class="nav-container">
-      <a class="logo" onclick="showShop()">☕ Yordi Coffee</a>
+    <div class="container nav">
+      <div class="brand" onclick="showShop()">
+        <div class="brand-badge">☕</div>
+        <div class="brand-title">
+          <b>Yordi Coffee</b>
+          <span>Fresh • Affordable • Fast Delivery</span>
+        </div>
+      </div>
 
-      <ul class="nav-menu">
-        <li><a onclick="showShop()">Shop</a></li>
-        <li><a onclick="openOrders()">My Orders</a></li>
+      <div class="nav-actions">
+        <div class="nav-links">
+          <div class="chip" onclick="showShop()">🛍️ <span>Shop</span></div>
+          <div class="chip" onclick="openOrders()">📦 <span>My Orders</span></div>
+          <div class="chip" onclick="openAdmin()">🛠️ <span>Admin</span></div>
+        </div>
 
-        <!-- ✅ Admin always visible; prompts key on click -->
-        <li><a onclick="openAdmin()">Admin</a></li>
+        <div class="chip" onclick="openAccountMenu()">
+          👤 <span id="authLabel">Login</span>
+        </div>
 
-        <li>
-          <div class="pill" onclick="openAccountMenu()">
-            👤 <span id="authLabel">Login</span>
-          </div>
-        </li>
-        <li>
-          <div class="pill" onclick="openCart()">
-            🛒 Cart <span class="cart-count" id="cartCount">0</span>
-          </div>
-        </li>
-      </ul>
-    </nav>
+        <div class="chip" onclick="openCart()">
+          🛒 <span>Cart</span> <span class="count" id="cartCount">0</span>
+        </div>
+
+        <button class="hamburger" onclick="openMobileMenu()" aria-label="Menu">☰</button>
+      </div>
+    </div>
   </header>
 
-  <section class="hero">
-    <h1>Fresh Coffee, Delivered</h1>
-    <p>Beans • Ground • Traditional • Accessories</p>
-    <p>Order any coffee you love — affordable prices, high quality, fast delivery.</p>
-
-  </section>
-
-  <div class="filter-section" id="shopSection">
-    <div class="filter-container">
-      <button class="filter-btn active" onclick="filterProducts('all', this)">All</button>
-      <button class="filter-btn" onclick="filterProducts('beans', this)">Beans</button>
-      <button class="filter-btn" onclick="filterProducts('ground', this)">Ground</button>
-      <button class="filter-btn" onclick="filterProducts('espresso', this)">Espresso</button>
-      <button class="filter-btn" onclick="filterProducts('traditional', this)">Traditional</button>
-      <button class="filter-btn" onclick="filterProducts('accessories', this)">Accessories</button>
+  <!-- MOBILE MENU -->
+  <div id="mobileMenu" class="mobile-menu hidden" onclick="if(event.target.id==='mobileMenu') closeMobileMenu()">
+    <div class="mobile-sheet">
+      <div class="top">
+        <div style="display:flex;align-items:center;gap:10px;font-weight:1100;">
+          <span style="width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);">☕</span>
+          <div>
+            <div>Yordi Coffee</div>
+            <div style="font-size:12px;color:rgba(169,182,210,.92);font-weight:900;margin-top:2px;">Menu</div>
+          </div>
+        </div>
+        <button class="btn btn-ghost" onclick="closeMobileMenu()">✕</button>
+      </div>
+      <div class="links">
+        <button class="btn btn-ghost" onclick="closeMobileMenu(); showShop();">🛍️ Shop</button>
+        <button class="btn btn-ghost" onclick="closeMobileMenu(); openOrders();">📦 My Orders</button>
+        <button class="btn btn-ghost" onclick="closeMobileMenu(); openAdmin();">🛠️ Admin</button>
+        <button class="btn btn-primary" onclick="closeMobileMenu(); openCart();">🛒 Open Cart</button>
+      </div>
     </div>
   </div>
 
-  <div id="loadingProducts" class="loading">Loading coffee...</div>
-  <div class="products-grid" id="productsGrid"></div>
+  <!-- HERO -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-card">
+        <div class="hero-inner">
+          <div>
+            <h1>Fresh Coffee, Delivered to You</h1>
+            <p>Order beans, ground coffee, espresso, traditional coffee, and accessories — high quality, affordable, and delivered fast.</p>
+
+            <div class="hero-bullets">
+              <span class="pill">⭐ Premium taste</span>
+              <span class="pill">🚚 Fast delivery</span>
+              <span class="pill">💳 Telebirr / Cash</span>
+              <span class="pill">🛍️ Accessories</span>
+            </div>
+
+            <div class="hero-cta">
+              <button class="btn btn-primary" onclick="scrollToShop()">Shop Coffee</button>
+              <button class="btn btn-ghost" onclick="openOrders()">Track Orders</button>
+            </div>
+          </div>
+
+          <div class="hero-side">
+            <h3>Today’s Quick Info</h3>
+            <div class="muted">Everything you need in one place.</div>
+            <div style="margin-top:10px;">
+              <div class="row"><span class="tag">☕ Beans</span><span class="muted">Roasts & origin</span></div>
+              <div class="row"><span class="tag">🧊 Ground</span><span class="muted">Ready to brew</span></div>
+              <div class="row"><span class="tag">⚡ Espresso</span><span class="muted">Strong & smooth</span></div>
+              <div class="row"><span class="tag">🏺 Traditional</span><span class="muted">Authentic style</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar-wrap" id="shopSection">
+    <div class="container toolbar">
+      <div class="search">
+        🔎
+        <input id="searchInput" placeholder="Search coffee (e.g., Yirgacheffe, espresso, grinder)..." oninput="applySearch()" />
+      </div>
+
+      <div class="filters">
+        <button class="filter-btn active" onclick="filterProducts('all', this)">All</button>
+        <button class="filter-btn" onclick="filterProducts('beans', this)">Beans</button>
+        <button class="filter-btn" onclick="filterProducts('ground', this)">Ground</button>
+        <button class="filter-btn" onclick="filterProducts('espresso', this)">Espresso</button>
+        <button class="filter-btn" onclick="filterProducts('traditional', this)">Traditional</button>
+        <button class="filter-btn" onclick="filterProducts('accessories', this)">Accessories</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRODUCTS -->
+  <main class="main">
+    <div class="container">
+      <div id="loadingProducts" class="loading">Loading coffee...</div>
+      <div class="grid" id="productsGrid"></div>
+    </div>
+  </main>
 
   <!-- ORDERS -->
   <div id="ordersSection" class="panel hidden">
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
-        <h2>📦 My Orders</h2>
-        <button class="btn-primary" onclick="showShop()">Back to Shop</button>
+    <div class="container">
+      <div class="panel-card">
+        <div class="panel-head">
+          <h2>📦 My Orders</h2>
+          <button class="btn btn-ghost" onclick="showShop()">← Back to Shop</button>
+        </div>
+        <p class="subtext">Login required to view your order history.</p>
+        <div id="ordersList" style="margin-top:12px;"></div>
       </div>
-      <p style="color:#636e72;margin-top:0.25rem;">Login required to view your order history.</p>
-      <div id="ordersList" style="margin-top:1rem;"></div>
     </div>
   </div>
 
   <!-- ADMIN -->
   <div id="adminSection" class="panel hidden">
-    <div class="admin-panel">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
-        <h2>🛠 Admin</h2>
-        <button class="btn-ghost" onclick="showShop()">Back to Shop</button>
-      </div>
-
-      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin:0.75rem 0 1rem;">
-        <button class="btn-primary" onclick="adminSetKey()">Set Admin Key</button>
-        <button class="btn-ghost" onclick="adminTestKey()">Test Key</button>
-        <button class="btn-danger" onclick="adminLogout()">Logout</button>
-      </div>
-
-      <p style="color:#636e72;margin-bottom:1.25rem;">
-        Admin is protected by <b>ADMIN_API_KEY</b>. Key is stored only in your browser (localStorage).
-      </p>
-
-      <h3 style="margin-bottom:1rem;">Add New Coffee Item</h3>
-
-      <form id="productForm">
-        <div class="image-upload-area" onclick="document.getElementById('imageInput').click()">
-          <p>📷 Upload Image (optional, max 2MB)</p>
-          <input type="file" id="imageInput" accept="image/*" style="display:none;">
-          <img id="imagePreview" class="image-preview hidden" alt="Preview">
+    <div class="container">
+      <div class="admin-panel">
+        <div class="panel-head">
+          <h2>🛠 Admin Dashboard</h2>
+          <button class="btn btn-ghost" onclick="showShop()">← Back to Shop</button>
         </div>
 
-        <label>Item Name</label>
-        <input id="productName" required placeholder="e.g., Yirgacheffe Beans 1kg">
-
-        <label>Description</label>
-        <textarea id="productDescription" rows="3" placeholder="Taste notes, roast level, size..."></textarea>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.5rem;">
-          <div>
-            <label>Category</label>
-            <select id="productCategory" required>
-              <option value="beans">Beans</option>
-              <option value="ground">Ground</option>
-              <option value="espresso">Espresso</option>
-              <option value="traditional">Traditional</option>
-              <option value="accessories">Accessories</option>
-            </select>
-          </div>
-          <div>
-            <label>Price (ETB)</label>
-            <input type="number" id="productPrice" step="0.01" required placeholder="e.g., 1200">
-          </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 12px;">
+          <button class="btn btn-primary" onclick="adminSetKey()">Set Admin Key</button>
+          <button class="btn btn-ghost" onclick="adminTestKey()">Test Key</button>
+          <button class="btn btn-danger" onclick="adminLogout()">Logout</button>
         </div>
 
-        <button class="btn-primary" id="addBtn" type="submit" style="width:100%;margin-top:1.2rem;">Add Item</button>
-        <p id="adminStatus" style="margin-top:0.75rem;color:#636e72;font-weight:900;"></p>
-      </form>
+        <p class="subtext">
+          Admin is protected by <b>ADMIN_API_KEY</b>. Key is stored only in your browser (localStorage).
+        </p>
 
-      <h3 style="margin-top:2rem;margin-bottom:1rem;">Manage Coffee</h3>
-      <div class="product-list" id="productList"></div>
+        <div class="hr"></div>
 
-      <h3 style="margin-top:2rem;margin-bottom:1rem;">📦 Customer Orders (Admin Only)</h3>
-      <div id="adminOrders" style="margin-top:0.75rem;"></div>
+        <h3 style="margin:0 0 10px;font-weight:1100;">Add New Coffee Item</h3>
+
+        <form id="productForm">
+          <div class="image-upload-area" onclick="document.getElementById('imageInput').click()">
+            <div style="font-weight:1000;">📷 Upload Image (optional, max 2MB)</div>
+            <div class="muted">Clear, high-quality images look best on the shop.</div>
+            <input type="file" id="imageInput" accept="image/*" style="display:none;">
+            <img id="imagePreview" class="image-preview hidden" alt="Preview">
+          </div>
+
+          <label>Item Name</label>
+          <input id="productName" required placeholder="e.g., Yirgacheffe Beans 1kg">
+
+          <label>Description</label>
+          <textarea id="productDescription" rows="3" placeholder="Taste notes, roast level, size..."></textarea>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px;">
+            <div>
+              <label>Category</label>
+              <select id="productCategory" required>
+                <option value="beans">Beans</option>
+                <option value="ground">Ground</option>
+                <option value="espresso">Espresso</option>
+                <option value="traditional">Traditional</option>
+                <option value="accessories">Accessories</option>
+              </select>
+            </div>
+            <div>
+              <label>Price (ETB)</label>
+              <input type="number" id="productPrice" step="0.01" required placeholder="e.g., 1200">
+            </div>
+          </div>
+
+          <button class="btn btn-primary" id="addBtn" type="submit" style="width:100%;margin-top:12px;">Add Item</button>
+          <p id="adminStatus" style="margin-top:10px;color:rgba(169,182,210,.92);font-weight:1000;"></p>
+        </form>
+
+        <div class="hr"></div>
+
+        <h3 style="margin:0 0 10px;font-weight:1100;">Manage Coffee</h3>
+        <div class="list" id="productList"></div>
+
+        <div class="hr"></div>
+
+        <h3 style="margin:0 0 10px;font-weight:1100;">📦 Customer Orders (Admin Only)</h3>
+        <div id="adminOrders" style="margin-top:10px;"></div>
+      </div>
     </div>
   </div>
 
   <!-- EDIT MODAL -->
-  <div id="editModal" class="modal-backdrop hidden" onclick="if(event.target.id==='editModal') closeEditModal()">
+  <div id="editModal" class="backdrop hidden" onclick="if(event.target.id==='editModal') closeEditModal()">
     <div class="modal">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+      <div class="modal-head">
         <h2>Edit Item</h2>
-        <button class="btn-ghost" onclick="closeEditModal()">✕</button>
+        <button class="btn btn-ghost" onclick="closeEditModal()">✕</button>
       </div>
-
-      <p class="muted">Update item details and optionally replace image.</p>
+      <div class="muted">Update item details and optionally replace image.</div>
 
       <input id="editId" type="hidden" />
 
@@ -323,7 +810,7 @@
       <label>Description</label>
       <textarea id="editDescription" rows="3"></textarea>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div>
           <label>Category</label>
           <select id="editCategory">
@@ -347,46 +834,47 @@
       <div class="hr"></div>
 
       <div class="actions">
-        <button class="btn-primary" onclick="saveEditProduct()">Save</button>
-        <button class="btn-danger" onclick="closeEditModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEditProduct()">Save</button>
+        <button class="btn btn-danger" onclick="closeEditModal()">Cancel</button>
       </div>
 
-      <p id="editMsg" style="margin-top:0.75rem;color:#e74c3c;font-weight:1000;"></p>
+      <p id="editMsg" style="margin-top:10px;color:var(--bad);font-weight:1000;"></p>
     </div>
   </div>
 
   <!-- CART DRAWER -->
   <div id="cartDrawer" class="drawer-backdrop hidden" onclick="if(event.target.id==='cartDrawer'){closeCart()}">
     <div class="drawer">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <h2>🛒 Cart</h2>
-        <button class="btn btn-dark" style="width:auto;padding:0.5rem 0.75rem;" onclick="closeCart()">✕</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <h2 style="margin:0;font-size:18px;font-weight:1100;">🛒 Cart</h2>
+        <button class="btn btn-ghost" onclick="closeCart()">✕</button>
       </div>
 
-      <div id="cartItems"></div>
+      <div id="cartItems" style="margin-top:10px;"></div>
 
       <div class="hr"></div>
-      <div style="display:flex;justify-content:space-between;font-weight:1000;">
-        <span>Subtotal</span>
-        <span id="cartSubtotal">0 ETB</span>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;font-weight:1100;">
+        <span style="color:rgba(169,182,210,.92);">Subtotal</span>
+        <span id="cartSubtotal" style="font-weight:1200;">0 ETB</span>
       </div>
 
-      <button class="btn btn-dark" style="width:100%;margin-top:1rem;" onclick="continueShopping()">Continue Shopping</button>
-      <button class="btn-primary" style="width:100%;margin-top:0.6rem;" onclick="openCheckout()">Checkout</button>
-      <button class="btn btn-dark" style="width:100%;margin-top:0.6rem;" onclick="clearCart()">Clear Cart</button>
+      <button class="btn btn-ghost" style="width:100%;margin-top:10px;" onclick="continueShopping()">Continue Shopping</button>
+      <button class="btn btn-primary" style="width:100%;margin-top:10px;" onclick="openCheckout()">Checkout</button>
+      <button class="btn btn-danger" style="width:100%;margin-top:10px;" onclick="clearCart()">Clear Cart</button>
     </div>
   </div>
 
   <!-- CHECKOUT MODAL -->
-  <div id="checkoutModal" class="modal-backdrop hidden" onclick="if(event.target.id==='checkoutModal') closeCheckout()">
-    <div class="modal" style="width:min(720px,100%);">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
+  <div id="checkoutModal" class="backdrop hidden" onclick="if(event.target.id==='checkoutModal') closeCheckout()">
+    <div class="modal">
+      <div class="modal-head">
         <h2>✅ Checkout</h2>
-        <button class="btn btn-dark" style="width:auto;padding:0.5rem 0.75rem;border-radius:10px;" onclick="closeCheckout()">✕</button>
+        <button class="btn btn-ghost" onclick="closeCheckout()">✕</button>
       </div>
-      <p class="muted">Fill your details and place your order.</p>
+      <div class="muted">Fill your details and place your order.</div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;">
         <div>
           <label>Full Name</label>
           <input id="ckFullName" placeholder="Full name">
@@ -397,7 +885,7 @@
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div>
           <label>Email (optional)</label>
           <input id="ckEmail" placeholder="you@example.com">
@@ -419,7 +907,7 @@
 
       <div class="hr"></div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div>
           <label>Payment Method</label>
           <select id="ckPaymentMethod">
@@ -437,26 +925,26 @@
       <label>Telebirr Reference (if Telebirr)</label>
       <input id="ckTelebirrRef" placeholder="TB123...">
 
-      <div class="actions" style="margin-top:1rem;">
-        <button class="btn-primary" onclick="placeOrder()">Place Order</button>
-        <button class="btn btn-dark" style="width:auto;padding:0.85rem 1rem;" onclick="closeCheckout()">Cancel</button>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="placeOrder()">Place Order</button>
+        <button class="btn btn-ghost" onclick="closeCheckout()">Cancel</button>
       </div>
 
-      <p id="checkoutMsg" style="margin-top:0.75rem;color:#e74c3c;font-weight:1000;"></p>
+      <p id="checkoutMsg" style="margin-top:10px;color:var(--bad);font-weight:1000;"></p>
     </div>
   </div>
 
   <!-- AUTH MODAL -->
-  <div id="authModal" class="modal-backdrop hidden" onclick="if(event.target.id==='authModal') closeAuth()">
-    <div class="modal">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
+  <div id="authModal" class="backdrop hidden" onclick="if(event.target.id==='authModal') closeAuth()">
+    <div class="modal" style="width:min(520px, 100%);">
+      <div class="modal-head">
         <h2 id="authTitle">Login</h2>
-        <button class="btn-ghost" onclick="closeAuth()">✕</button>
+        <button class="btn btn-ghost" onclick="closeAuth()">✕</button>
       </div>
-      <p id="authSubtitle" class="muted">Login to see your orders and checkout faster.</p>
+      <div id="authSubtitle" class="muted">Login to see your orders and checkout faster.</div>
 
       <!-- LOGIN -->
-      <div id="authFormLogin">
+      <div id="authFormLogin" style="margin-top:10px;">
         <label>Email</label>
         <input id="loginEmail" placeholder="email@example.com" />
 
@@ -464,15 +952,15 @@
         <input id="loginPassword" type="password" placeholder="******" />
 
         <div class="actions">
-          <button class="btn-primary" onclick="doLogin()">Login</button>
-          <button class="btn-ghost" onclick="switchToRegister()">Create account</button>
+          <button class="btn btn-primary" onclick="doLogin()">Login</button>
+          <button class="btn btn-ghost" onclick="switchToRegister()">Create account</button>
         </div>
 
-        <p id="authMsg" style="margin-top:0.75rem;color:#e74c3c;font-weight:1000;"></p>
+        <p id="authMsg" style="margin-top:10px;color:var(--bad);font-weight:1000;"></p>
       </div>
 
       <!-- REGISTER -->
-      <div id="authFormRegister" class="hidden">
+      <div id="authFormRegister" class="hidden" style="margin-top:10px;">
         <label>Full Name</label>
         <input id="regFullName" placeholder="Your name" />
 
@@ -483,36 +971,37 @@
         <input id="regPassword" type="password" placeholder="min 6 chars" />
 
         <div class="actions">
-          <button class="btn-primary" onclick="doRegister()">Register</button>
-          <button class="btn-ghost" onclick="switchToLogin()">Back to login</button>
+          <button class="btn btn-primary" onclick="doRegister()">Register</button>
+          <button class="btn btn-ghost" onclick="switchToLogin()">Back to login</button>
         </div>
 
-        <p id="authMsg2" style="margin-top:0.75rem;color:#e74c3c;font-weight:1000;"></p>
+        <p id="authMsg2" style="margin-top:10px;color:var(--bad);font-weight:1000;"></p>
       </div>
     </div>
   </div>
 
+  <!-- FOOTER -->
   <footer class="footer">
-    <div class="footer-inner">
-      <div>
-        <h3>☕ Yordi Coffee</h3>
-        <p>Fresh coffee products — beans, ground coffee, espresso & accessories.</p>
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <h3>☕ Yordi Coffee</h3>
+          <p>Fresh coffee products — beans, ground coffee, espresso, traditional coffee & accessories.</p>
+        </div>
+        <div>
+          <h3>Support</h3>
+          <p>Email: <a href="mailto:info@yordicoffee.com">info@yordicoffee.com</a></p>
+        </div>
+        <div>
+          <h3>Hours</h3>
+          <p>Mon–Sat: 8:00 AM – 8:00 PM</p>
+          <p>Sunday: Closed</p>
+        </div>
       </div>
 
-      <div>
-        <h3>Support</h3>
-        <p>Email: <a href="mailto:info@yordicoffee.com">info@yordicoffee.com</a></p>
+      <div class="footer-bottom">
+        © <span id="yy"></span> Yordi Coffee. All rights reserved.
       </div>
-
-      <div>
-        <h3>Hours</h3>
-        <p>Mon–Sat: 8:00 AM – 8:00 PM</p>
-        <p>Sunday: Closed</p>
-      </div>
-    </div>
-
-    <div class="footer-bottom">
-      © <span id="yy"></span> Yordi Coffee. All rights reserved.
     </div>
   </footer>
 
@@ -529,6 +1018,7 @@
 
   let products = [];
   let currentFilter = "all";
+  let searchText = "";
   let cart = JSON.parse(localStorage.getItem("YORDI_CART") || "[]");
 
   // ---- Admin key ----
@@ -562,6 +1052,13 @@
     catch { return { text, json: null }; }
   }
 
+  // smoother scroll without “disappearing” feeling
+  function scrollToShop(){
+    const el = document.getElementById("shopSection");
+    const y = el.getBoundingClientRect().top + window.scrollY - 6; // toolbar is sticky below header
+    window.scrollTo({ top: y, behavior:"smooth" });
+  }
+
   function saveCart(){
     localStorage.setItem("YORDI_CART", JSON.stringify(cart));
     updateCartCount();
@@ -579,10 +1076,14 @@
   function showShop(){
     document.getElementById("ordersSection").classList.add("hidden");
     document.getElementById("adminSection").classList.add("hidden");
-    document.getElementById("shopSection").scrollIntoView({ behavior:"smooth" });
+    scrollToShop();
   }
 
   function continueShopping(){ closeCart(); showShop(); }
+
+  // mobile menu
+  function openMobileMenu(){ document.getElementById("mobileMenu").classList.remove("hidden"); }
+  function closeMobileMenu(){ document.getElementById("mobileMenu").classList.add("hidden"); }
 
   async function verifyAdminKey(key){
     const res = await fetch(API_BASE + "/api/admin/verify", {
@@ -632,7 +1133,6 @@
   }
 
   async function openAdmin(){
-    // must be unlocked
     if(!adminUnlocked){
       const saved = getAdminKey();
       if(saved){
@@ -648,7 +1148,7 @@
 
     document.getElementById("ordersSection").classList.add("hidden");
     document.getElementById("adminSection").classList.remove("hidden");
-    window.scrollTo({ top: document.getElementById("adminSection").offsetTop, behavior:"smooth" });
+    window.scrollTo({ top: document.getElementById("adminSection").offsetTop - 10, behavior:"smooth" });
 
     renderAdminList();
     await loadAdminOrders();
@@ -658,11 +1158,11 @@
   async function openOrders(){
     document.getElementById("adminSection").classList.add("hidden");
     document.getElementById("ordersSection").classList.remove("hidden");
-    window.scrollTo({ top: document.getElementById("ordersSection").offsetTop, behavior:"smooth" });
+    window.scrollTo({ top: document.getElementById("ordersSection").offsetTop - 10, behavior:"smooth" });
 
     if(!getToken()){
       document.getElementById("ordersList").innerHTML =
-        '<div style="padding:1rem;border:1px solid #eee;border-radius:14px;color:#636e72;">Please login to view orders. <span class="link" onclick="openAuth()">Login</span></div>';
+        '<div style="padding:14px;border:1px solid rgba(255,255,255,.10);border-radius:18px;color:rgba(169,182,210,.92);background:rgba(255,255,255,.04);font-weight:900;">Please login to view orders. <span style="color:rgba(255,236,215,.95);font-weight:1100;cursor:pointer;text-decoration:underline;" onclick="openAuth()">Login</span></div>';
       return;
     }
     await loadMyOrders();
@@ -671,32 +1171,42 @@
   // ------------------ PRODUCTS ------------------
   async function loadProducts(){
     const loading = document.getElementById("loadingProducts");
+    const grid = document.getElementById("productsGrid");
     const url = API_BASE + "/api/coffee";
+
     loading.classList.remove("hidden");
     loading.innerHTML = "Loading coffee...";
+    grid.innerHTML = "";
 
     try {
       const res = await fetch(url, { cache: "no-store" });
       const { text, json } = await readJsonSafe(res);
       if(!res.ok) throw new Error(`Backend ${res.status}: ${json?.details || json?.error || text || "Unknown error"}`);
+
       products = Array.isArray(json) ? json : [];
       loading.classList.add("hidden");
+
       renderProducts();
       renderAdminList();
     } catch (err) {
       console.error(err);
       loading.innerHTML = `
-        <p style="color:#e74c3c;font-weight:900;">Failed to load coffee from backend.</p>
-        <p style="color:#636e72;margin-top:0.5rem;">
+        <div style="color:rgba(255,91,91,.95);font-weight:1100;">Failed to load coffee from backend.</div>
+        <div style="color:rgba(169,182,210,.92);margin-top:8px;font-weight:900;line-height:1.6;">
           API_BASE: <b>${escapeHtml(API_BASE)}</b><br/>
           URL: <b>${escapeHtml(url)}</b><br/>
           Error: <b>${escapeHtml(err.message || String(err))}</b>
-        </p>
-        <div style="margin-top:0.75rem;">
-          <button class="btn-primary" onclick="loadProducts()">Retry</button>
+        </div>
+        <div style="margin-top:10px;">
+          <button class="btn btn-primary" onclick="loadProducts()">Retry</button>
         </div>
       `;
     }
+  }
+
+  function applySearch(){
+    searchText = (document.getElementById("searchInput")?.value || "").trim().toLowerCase();
+    renderProducts();
   }
 
   function filterProducts(category, btnEl){
@@ -708,26 +1218,38 @@
 
   function renderProducts(){
     const grid = document.getElementById("productsGrid");
-    const filtered = (currentFilter === "all")
+
+    let filtered = (currentFilter === "all")
       ? products
       : products.filter(p => String(p.category || "") === String(currentFilter));
 
+    if(searchText){
+      filtered = filtered.filter(p => {
+        const name = String(p.name || "").toLowerCase();
+        const desc = String(p.description || "").toLowerCase();
+        const cat  = String(p.category || "").toLowerCase();
+        return name.includes(searchText) || desc.includes(searchText) || cat.includes(searchText);
+      });
+    }
+
     if (!filtered.length) {
-      grid.innerHTML = `<div style="padding:1rem;color:#636e72;">No items found.</div>`;
+      grid.innerHTML = `<div style="grid-column:1/-1;padding:14px;border:1px solid rgba(255,255,255,.10);border-radius:18px;background:rgba(255,255,255,.04);color:rgba(169,182,210,.92);font-weight:900;">No items found.</div>`;
       return;
     }
 
     grid.innerHTML = filtered.map(p => `
-      <div class="product-card">
-        <div class="product-image">
+      <div class="cardp">
+        <div class="img">
+          <div class="badge">${escapeHtml(p.category || "coffee")}</div>
           <img src="${p.image || ''}" alt="${escapeHtml(p.name || 'Coffee')}" onerror="this.style.display='none'">
         </div>
-        <div class="product-details">
-          <div class="product-category">${escapeHtml(p.category || '')}</div>
-          <div class="product-name">${escapeHtml(p.name || '')}</div>
-          ${p.description ? `<p style="font-size:0.95rem;color:#636e72;margin:0.4rem 0;">${escapeHtml(p.description)}</p>` : ""}
-          <div class="product-price">${formatMoney(p.price)} ETB</div>
-          <button class="btn btn-dark" onclick="addToCart('${String(p._id)}')">Add to Cart</button>
+        <div class="content">
+          <p class="name">${escapeHtml(p.name || '')}</p>
+          ${p.description ? `<p class="desc">${escapeHtml(p.description)}</p>` : `<p class="desc">Smooth taste, fresh roast, and premium quality.</p>`}
+          <div class="row2">
+            <div class="price">${formatMoney(p.price)} ETB</div>
+            <button class="add" onclick="addToCart('${String(p._id)}')">Add</button>
+          </div>
         </div>
       </div>
     `).join("");
@@ -779,7 +1301,7 @@
   function renderCart(){
     const box = document.getElementById("cartItems");
     if(cart.length === 0){
-      box.innerHTML = `<div style="padding:1rem;color:#636e72;border:1px solid #eee;border-radius:14px;margin-top:1rem;">Your cart is empty.</div>`;
+      box.innerHTML = `<div style="padding:14px;border:1px solid rgba(255,255,255,.10);border-radius:18px;background:rgba(255,255,255,.04);color:rgba(169,182,210,.92);font-weight:900;">Your cart is empty.</div>`;
       document.getElementById("cartSubtotal").textContent = "0 ETB";
       return;
     }
@@ -788,8 +1310,8 @@
       <div class="cart-item">
         <div class="cart-thumb"><img src="${it.image || ''}" onerror="this.style.display='none'"></div>
         <div style="flex:1;">
-          <div style="font-weight:1000;">${escapeHtml(it.name || "")}</div>
-          <div style="color:#e74c3c;font-weight:1000;margin-top:0.2rem;">${formatMoney(it.price)} ETB</div>
+          <div style="font-weight:1100;">${escapeHtml(it.name || "")}</div>
+          <div style="color:rgba(255,236,215,.95);font-weight:1100;margin-top:4px;">${formatMoney(it.price)} ETB</div>
           <div class="qty">
             <button onclick="changeQty('${escapeHtml(it.productId)}', -1)">-</button>
             <span>${Number(it.qty)||1}</span>
@@ -942,7 +1464,7 @@
 
   async function loadMyOrders(){
     const box = document.getElementById("ordersList");
-    box.innerHTML = `<div style="padding:1rem;color:#636e72;border:1px solid #eee;border-radius:14px;">Loading...</div>`;
+    box.innerHTML = `<div style="padding:14px;border:1px solid rgba(255,255,255,.10);border-radius:18px;background:rgba(255,255,255,.04);color:rgba(169,182,210,.92);font-weight:900;">Loading...</div>`;
 
     try{
       const res = await fetch(API_BASE + "/api/orders/my", {
@@ -953,42 +1475,42 @@
 
       const orders = Array.isArray(json) ? json : [];
       if(orders.length === 0){
-        box.innerHTML = `<div style="padding:1rem;color:#636e72;border:1px solid #eee;border-radius:14px;">No orders yet.</div>`;
+        box.innerHTML = `<div style="padding:14px;border:1px solid rgba(255,255,255,.10);border-radius:18px;background:rgba(255,255,255,.04);color:rgba(169,182,210,.92);font-weight:900;">No orders yet.</div>`;
         return;
       }
 
       box.innerHTML = orders.map(o => {
         const itemsHtml = (o.items || []).map(it => `
-          <div style="display:flex;gap:0.75rem;align-items:center;padding:0.5rem 0;border-bottom:1px solid #f3f3f3;">
+          <div style="display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08);">
             <div style="flex:1;">
-              <div style="font-weight:1000;">${escapeHtml(it.name || "")}</div>
-              <div style="color:#636e72;font-weight:900;font-size:0.95rem;">Qty: ${Number(it.qty)||1} • ${formatMoney(it.price)} ETB</div>
+              <div style="font-weight:1100;">${escapeHtml(it.name || "")}</div>
+              <div style="color:rgba(169,182,210,.92);font-weight:900;font-size:13px;">Qty: ${Number(it.qty)||1} • ${formatMoney(it.price)} ETB</div>
             </div>
           </div>
         `).join("");
 
         return `
-          <div style="border:1px solid #eee;border-radius:16px;padding:1rem;margin-bottom:1rem;">
-            <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+          <div style="border:1px solid rgba(255,255,255,.10);border-radius:18px;padding:14px;margin-bottom:12px;background:rgba(255,255,255,.04);">
+            <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
               <div>
-                <div style="font-weight:1000;font-size:1.05rem;">Order: ${escapeHtml(o.orderId || "")}</div>
-                <div style="color:#636e72;font-weight:900;font-size:0.95rem;">
+                <div style="font-weight:1100;font-size:15px;">Order: ${escapeHtml(o.orderId || "")}</div>
+                <div style="color:rgba(169,182,210,.92);font-weight:900;font-size:13px;margin-top:4px;">
                   Status: ${escapeHtml(o.status || "placed")} • Payment: ${escapeHtml(o.payment?.method || "")} (${escapeHtml(o.payment?.status || "pending")})
                 </div>
               </div>
-              <div style="font-weight:1000;color:#e74c3c;font-size:1.05rem;">${formatMoney(o.total)} ETB</div>
+              <div style="font-weight:1200;color:rgba(255,236,215,.98);font-size:15px;">${formatMoney(o.total)} ETB</div>
             </div>
 
-            <div style="margin-top:0.75rem;">${itemsHtml}</div>
+            <div style="margin-top:10px;">${itemsHtml}</div>
 
-            <div style="margin-top:0.75rem;color:#636e72;font-weight:900;font-size:0.95rem;">
+            <div style="margin-top:10px;color:rgba(169,182,210,.92);font-weight:900;font-size:13px;">
               Placed: ${new Date(o.createdAt).toLocaleString()}
             </div>
           </div>
         `;
       }).join("");
     }catch(e){
-      box.innerHTML = `<div style="padding:1rem;color:#e74c3c;border:1px solid #eee;border-radius:14px;">${escapeHtml(e.message)}</div>`;
+      box.innerHTML = `<div style="padding:14px;border:1px solid rgba(255,255,255,.10);border-radius:18px;background:rgba(255,255,255,.04);color:rgba(255,91,91,.95);font-weight:1000;">${escapeHtml(e.message)}</div>`;
     }
   }
 
@@ -997,13 +1519,13 @@
     const box = document.getElementById("adminOrders");
     const key = getAdminKey();
     if(!key){
-      box.innerHTML = `<div style="padding:1rem;border:1px solid #eee;border-radius:14px;color:#636e72;">
+      box.innerHTML = `<div style="padding:14px;border:1px solid rgba(255,255,255,.10);border-radius:18px;background:rgba(255,255,255,.04);color:rgba(169,182,210,.92);font-weight:900;">
         Admin key not set. Click <b>Set Admin Key</b>.
       </div>`;
       return;
     }
 
-    box.innerHTML = `<div style="padding:1rem;border:1px solid #eee;border-radius:14px;color:#636e72;">Loading orders...</div>`;
+    box.innerHTML = `<div style="padding:14px;border:1px solid rgba(255,255,255,.10);border-radius:18px;background:rgba(255,255,255,.04);color:rgba(169,182,210,.92);font-weight:900;">Loading orders...</div>`;
 
     try{
       const res = await fetch(API_BASE + "/api/admin/orders", {
@@ -1020,7 +1542,7 @@
 
       const orders = Array.isArray(json) ? json : [];
       if(orders.length === 0){
-        box.innerHTML = `<div style="padding:1rem;border:1px solid #eee;border-radius:14px;color:#636e72;">No orders yet.</div>`;
+        box.innerHTML = `<div style="padding:14px;border:1px solid rgba(255,255,255,.10);border-radius:18px;background:rgba(255,255,255,.04);color:rgba(169,182,210,.92);font-weight:900;">No orders yet.</div>`;
         return;
       }
 
@@ -1030,13 +1552,13 @@
         const payStatus = o.payment?.status || "pending";
 
         const itemsHtml = (o.items || []).map(it => `
-          <div style="display:flex;gap:0.75rem;align-items:center;padding:0.6rem 0;border-bottom:1px solid #f3f3f3;">
-            <div style="width:60px;height:60px;border-radius:12px;overflow:hidden;background:#f1f1f1;flex:0 0 auto;">
+          <div style="display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08);">
+            <div style="width:56px;height:56px;border-radius:16px;overflow:hidden;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);flex:0 0 auto;">
               <img src="${it.image || ""}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">
             </div>
             <div style="flex:1;">
-              <div style="font-weight:1000;">${escapeHtml(it.name || "")}</div>
-              <div style="color:#636e72;font-weight:900;font-size:0.95rem;">
+              <div style="font-weight:1100;">${escapeHtml(it.name || "")}</div>
+              <div style="color:rgba(169,182,210,.92);font-weight:900;font-size:13px;">
                 Qty: ${Number(it.qty)||1} • ${formatMoney(it.price)} ETB
               </div>
             </div>
@@ -1044,41 +1566,41 @@
         `).join("");
 
         return `
-          <div style="border:1px solid #eee;border-radius:16px;padding:1rem;margin-bottom:1rem;">
-            <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+          <div style="border:1px solid rgba(255,255,255,.10);border-radius:18px;padding:14px;margin-bottom:12px;background:rgba(255,255,255,.04);">
+            <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
               <div>
-                <div style="font-weight:1000;font-size:1.05rem;">Order: ${escapeHtml(o.orderId || "")}</div>
-                <div style="color:#636e72;font-weight:900;font-size:0.95rem;">
+                <div style="font-weight:1100;font-size:15px;">Order: ${escapeHtml(o.orderId || "")}</div>
+                <div style="color:rgba(169,182,210,.92);font-weight:900;font-size:13px;margin-top:4px;">
                   Status: <b>${escapeHtml(o.status || "placed")}</b> • Payment: <b>${escapeHtml(payMethod)}</b> (<b>${escapeHtml(payStatus)}</b>)
                 </div>
-                <div style="margin-top:0.4rem;color:#636e72;font-weight:900;font-size:0.95rem;">
+                <div style="margin-top:8px;color:rgba(169,182,210,.92);font-weight:900;font-size:13px;line-height:1.6;">
                   Customer: <b>${escapeHtml(c.fullName || "")}</b> • ${escapeHtml(c.phone || "")} • ${escapeHtml(c.email || "")}<br>
                   Address: ${escapeHtml(c.address || "")}, ${escapeHtml(c.city || "")}, ${escapeHtml(c.country || "")}
                 </div>
               </div>
-              <div style="font-weight:1000;color:#e74c3c;font-size:1.05rem;">${formatMoney(o.total)} ETB</div>
+              <div style="font-weight:1200;color:rgba(255,236,215,.98);font-size:15px;">${formatMoney(o.total)} ETB</div>
             </div>
 
-            <div style="margin-top:0.75rem;">${itemsHtml}</div>
+            <div style="margin-top:10px;">${itemsHtml}</div>
 
-            <div style="margin-top:0.75rem;display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">
-              <select id="st_${o._id}" class="btn-ghost" style="padding:0.6rem 0.8rem;border:1px solid #ddd;">
+            <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+              <select id="st_${o._id}">
                 ${["placed","processing","delivered","cancelled"].map(s => `
                   <option value="${s}" ${String(o.status)===s ? "selected" : ""}>${s}</option>
                 `).join("")}
               </select>
 
-              <select id="pay_${o._id}" class="btn-ghost" style="padding:0.6rem 0.8rem;border:1px solid #ddd;">
+              <select id="pay_${o._id}">
                 ${["pending","paid","failed"].map(s => `
                   <option value="${s}" ${String(payStatus)===s ? "selected" : ""}>${s}</option>
                 `).join("")}
               </select>
 
-              <button class="btn-primary" onclick="adminUpdateOrder('${o._id}')">Save</button>
+              <button class="btn btn-primary" onclick="adminUpdateOrder('${o._id}')">Save</button>
             </div>
 
-            <div style="margin-top:0.75rem;display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
-              <select id="mailtpl_${o._id}" class="btn-ghost" style="padding:0.6rem 0.8rem;border:1px solid #ddd;">
+            <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+              <select id="mailtpl_${o._id}">
                 <option value="paid">Payment Confirmed (Paid)</option>
                 <option value="failed">Payment Failed</option>
                 <option value="processing">Order Processing</option>
@@ -1086,12 +1608,12 @@
                 <option value="custom">Custom</option>
               </select>
 
-              <input id="mailmsg_${o._id}" placeholder="Optional message to customer..." style="flex:1;min-width:240px;"/>
+              <input id="mailmsg_${o._id}" placeholder="Optional message to customer..." style="flex:1;min-width:240px;" />
 
-              <button class="btn-ghost" onclick="adminEmailCustomer('${o._id}')">Email Customer</button>
+              <button class="btn btn-ghost" onclick="adminEmailCustomer('${o._id}')">Email Customer</button>
             </div>
 
-            <div style="margin-top:0.6rem;color:#636e72;font-weight:900;font-size:0.95rem;">
+            <div style="margin-top:10px;color:rgba(169,182,210,.92);font-weight:900;font-size:13px;">
               Placed: ${new Date(o.createdAt).toLocaleString()}
             </div>
           </div>
@@ -1099,7 +1621,7 @@
       }).join("");
 
     }catch(e){
-      box.innerHTML = `<div style="padding:1rem;border:1px solid #eee;border-radius:14px;color:#e74c3c;">
+      box.innerHTML = `<div style="padding:14px;border:1px solid rgba(255,255,255,.10);border-radius:18px;background:rgba(255,255,255,.04);color:rgba(255,91,91,.95);font-weight:1000;">
         ${escapeHtml(e.message)}
       </div>`;
     }
@@ -1132,73 +1654,71 @@
     }
   }
 
-  // ✅✅✅ UPDATED: this now shows the REAL backend error details
-async function adminEmailCustomer(id){
-  const key = getAdminKey();
-  if(!key) return alert("Admin key required.");
+  // ✅ shows REAL backend error details
+  async function adminEmailCustomer(id){
+    const key = getAdminKey();
+    if(!key) return alert("Admin key required.");
 
-  const tpl = document.getElementById("mailtpl_" + id).value;
-  const message = document.getElementById("mailmsg_" + id).value.trim();
+    const tpl = document.getElementById("mailtpl_" + id).value;
+    const message = document.getElementById("mailmsg_" + id).value.trim();
 
-  // ✅ quick health check first
-  try{
-    const ping = await fetch(API_BASE + "/api/health", { cache: "no-store" });
-    if(!ping.ok) throw new Error("Backend not reachable (health check failed).");
-  }catch(e){
-    alert("Backend fetch failed. Check API_BASE and Render status.\n\n" + e.message);
-    return;
-  }
-
-  try{
-    const res = await fetch(API_BASE + "/api/admin/orders/" + encodeURIComponent(id) + "/email", {
-      method: "POST",
-      headers: {
-        "Content-Type":"application/json",
-        "x-admin-key": key
-      },
-      body: JSON.stringify({ template: tpl, message })
-    });
-
-    const text = await res.text();
-    let json = null;
-    try{ json = JSON.parse(text); }catch{}
-
-    if(res.status === 401){
-      clearAdminKey();
-      adminUnlocked = false;
-      throw new Error("Unauthorized admin key. Please open Admin again.");
+    try{
+      const ping = await fetch(API_BASE + "/api/health", { cache: "no-store" });
+      if(!ping.ok) throw new Error("Backend not reachable (health check failed).");
+    }catch(e){
+      alert("Backend fetch failed. Check API_BASE and Render status.\n\n" + e.message);
+      return;
     }
-    if(!res.ok) throw new Error(json?.details || json?.error || text || "Email failed");
 
-    alert("✅ Email sent to customer!");
-  }catch(e){
-    alert("Email error: " + e.message);
+    try{
+      const res = await fetch(API_BASE + "/api/admin/orders/" + encodeURIComponent(id) + "/email", {
+        method: "POST",
+        headers: {
+          "Content-Type":"application/json",
+          "x-admin-key": key
+        },
+        body: JSON.stringify({ template: tpl, message })
+      });
+
+      const text = await res.text();
+      let json = null;
+      try{ json = JSON.parse(text); }catch{}
+
+      if(res.status === 401){
+        clearAdminKey();
+        adminUnlocked = false;
+        throw new Error("Unauthorized admin key. Please open Admin again.");
+      }
+      if(!res.ok) throw new Error(json?.details || json?.error || text || "Email failed");
+
+      alert("✅ Email sent to customer!");
+    }catch(e){
+      alert("Email error: " + e.message);
+    }
   }
-}
-
 
   // ------------------ ADMIN COFFEE LIST ------------------
   function renderAdminList(){
     const list = document.getElementById("productList");
     if(!list) return;
+
     if(!products.length){
-      list.innerHTML = '<p style="color:#636e72;padding:1rem;">No items yet.</p>';
+      list.innerHTML = '<div style="padding:14px;border:1px solid rgba(255,255,255,.10);border-radius:18px;background:rgba(255,255,255,.04);color:rgba(169,182,210,.92);font-weight:900;">No items yet.</div>';
       return;
     }
 
     list.innerHTML = products.map(p => `
-      <div class="product-item">
-        <div class="product-item-image">
+      <div class="item">
+        <div class="thumb">
           <img src="${p.image || ''}" alt="${escapeHtml(p.name || '')}" onerror="this.style.display='none'">
         </div>
-        <div class="product-item-details">
+        <div class="meta">
           <h3>${escapeHtml(p.name || '')}</h3>
-          <p><b>Category:</b> ${escapeHtml(p.category || '')}</p>
-          <p><b>Price:</b> ${formatMoney(p.price)} ETB</p>
+          <p><b>Category:</b> ${escapeHtml(p.category || '')} &nbsp;•&nbsp; <b>Price:</b> ${formatMoney(p.price)} ETB</p>
         </div>
-        <div class="product-actions">
-          <button class="btn-ghost" onclick="openEditProduct('${String(p._id)}')">Edit</button>
-          <button class="btn-danger" onclick="deleteProduct('${String(p._id)}')">Delete</button>
+        <div class="actions">
+          <button class="btn btn-ghost" onclick="openEditProduct('${String(p._id)}')">Edit</button>
+          <button class="btn btn-danger" onclick="deleteProduct('${String(p._id)}')">Delete</button>
         </div>
       </div>
     `).join("");
@@ -1217,7 +1737,7 @@ async function adminEmailCustomer(id){
     const el = document.getElementById("adminStatus");
     if(!el) return;
     el.textContent = msg || "";
-    el.style.color = isError ? "#e74c3c" : "#636e72";
+    el.style.color = isError ? "rgba(255,91,91,.95)" : "rgba(169,182,210,.92)";
   }
 
   async function addProduct(formEl){
@@ -1253,6 +1773,7 @@ async function adminEmailCustomer(id){
       });
       const { text, json } = await readJsonSafe(res);
       if(!res.ok) throw new Error(json?.details || json?.error || text || "Failed to add item");
+
       alert("✅ Coffee item added!");
       setAdminStatus("Saved ✅");
       formEl.reset();

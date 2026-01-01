@@ -1,22 +1,25 @@
-// server.js ✅ YORDI ONLY (FORCES DB = Yordi_Coffee)
+// server.js ✅ MATCHES YOUR FRONTEND (Yordi Coffee)
 // --------------------------------------------------
-/**
- * Yordi Coffee Backend (MongoDB + Mongoose)
- * - Coffee CRUD (ADMIN protected with ADMIN_API_KEY)
- * - Auth (register/login) with JWT
- * - Orders + My Orders (JWT required)
- * - Admin: verify key, view/update ALL orders, email customer
- *
- * ✅ IMPORTANT FIX:
- * Forces Yordi to use its own DATABASE:
- *   DB_NAME = Yordi_Coffee
- * even if your Mongo URI is the same cluster used by Sena Fashion.
- *
- * Collections:
- * - yordi_coffee_items
- * - yordi_users
- * - yordi_orders
- */
+// Endpoints your index.html calls:
+//  GET    /api/health
+//  GET    /api/admin/verify          (x-admin-key)
+//  GET    /api/coffee
+//  POST   /api/coffee               (x-admin-key)
+//  PUT    /api/coffee/:id           (x-admin-key)
+//  DELETE /api/coffee/:id           (x-admin-key)
+//  POST   /api/auth/register
+//  POST   /api/auth/login
+//  POST   /api/orders               (Authorization: Bearer <token>)
+//  GET    /api/orders/my            (Authorization: Bearer <token>)
+//  GET    /api/admin/orders         (x-admin-key)
+//  PUT    /api/admin/orders/:id     (x-admin-key)
+//  POST   /api/admin/orders/:id/email (x-admin-key)
+//
+// ✅ Forces DB separation (Yordi_Coffee) even if same Atlas cluster as Sena Fashion
+// Collections:
+// - yordi_coffee_items
+// - yordi_users
+// - yordi_orders
 
 require("dotenv").config();
 
@@ -35,19 +38,22 @@ const app = express();
 // ---------- CONFIG ----------
 const PORT = process.env.PORT || 3000;
 
-// ✅ You can keep cluster URI here (even if it's same as Fashion)
+// ✅ Can be same cluster URI as Fashion
 const MONGODB_URI = process.env.MONGODB_URI;
 
-// ✅ FORCE DB NAME FOR YORDI
+// ✅ Force DB name for Yordi
 const DB_NAME = process.env.DB_NAME || "Yordi_Coffee";
 
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY || "";
-const JWT_SECRET = process.env.JWT_SECRET || "";
+// ✅ Must match your frontend header: x-admin-key
+const ADMIN_API_KEY = (process.env.ADMIN_API_KEY || "").trim();
 
-// Email (optional)
-const GMAIL_USER = process.env.GMAIL_USER || "";
-const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD || "";
-const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || "Yordi Coffee";
+// ✅ JWT for customer auth
+const JWT_SECRET = (process.env.JWT_SECRET || "").trim();
+
+// Email (optional for "Email Customer")
+const GMAIL_USER = (process.env.GMAIL_USER || "").trim();
+const GMAIL_APP_PASSWORD = (process.env.GMAIL_APP_PASSWORD || "").trim();
+const EMAIL_FROM_NAME = (process.env.EMAIL_FROM_NAME || "Yordi Coffee").trim();
 
 // Validate required env
 if (!MONGODB_URI) {
@@ -57,6 +63,9 @@ if (!MONGODB_URI) {
 if (!JWT_SECRET) {
   console.error("❌ Missing JWT_SECRET in .env");
   process.exit(1);
+}
+if (!ADMIN_API_KEY) {
+  console.warn("⚠️ ADMIN_API_KEY is missing. Admin routes will return 401 until you set it.");
 }
 
 // ---------- MIDDLEWARE ----------
@@ -68,18 +77,20 @@ app.use(
   })
 );
 
+// ✅✅✅ FIX: DO NOT USE app.options("*") or app.options("/*") (your express/router crashes)
+// Instead, handle preflight requests safely here:
 app.use((req, res, next) => {
   if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
 });
 
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "12mb" })); // base64 images
 app.use(express.urlencoded({ extended: true }));
 
 mongoose.set("strictQuery", true);
 mongoose.set("bufferCommands", false);
 
-// ---------- CONNECT (base connection) ----------
+// ---------- CONNECT (force db) ----------
 let yordiDb = null;
 
 (async () => {
@@ -90,7 +101,7 @@ let yordiDb = null;
       family: 4,
     });
 
-    // ✅ This is the key: force DB separation
+    // ✅ Force separation by DB name
     yordiDb = base.connection.useDb(DB_NAME, { useCache: true });
 
     console.log("✅ Mongo cluster connected");
@@ -101,25 +112,25 @@ let yordiDb = null;
   }
 })();
 
-// ---------- MODELS (created on yordiDb) ----------
 function requireDb(req, res, next) {
   if (!yordiDb) return res.status(503).json({ error: "DB not ready yet" });
   next();
 }
 
+// ---------- MODELS (on yordiDb) ----------
 // Coffee
 const coffeeSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     description: { type: String, default: "" },
-    category: { type: String, default: "coffee", trim: true },
+    category: { type: String, default: "coffee", trim: true }, // your UI uses beans/ground/espresso/...
     price: { type: Number, required: true },
-    image: { type: String, default: "" }, // base64 data URL or URL
+    image: { type: String, default: "" }, // base64 or URL
   },
   { timestamps: true, collection: "yordi_coffee_items" }
 );
 
-// User
+// Users
 const userSchema = new mongoose.Schema(
   {
     fullName: { type: String, required: true, trim: true },
@@ -130,7 +141,7 @@ const userSchema = new mongoose.Schema(
 );
 userSchema.index({ email: 1 }, { unique: true });
 
-// Order
+// Orders
 const orderSchema = new mongoose.Schema(
   {
     orderId: { type: String, index: true },
@@ -168,7 +179,6 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true, collection: "yordi_orders" }
 );
 
-// ✅ Create models ONLY on yordiDb (not global mongoose)
 function getModels() {
   const Coffee = yordiDb.models.YordiCoffee || yordiDb.model("YordiCoffee", coffeeSchema);
   const User = yordiDb.models.YordiUser || yordiDb.model("YordiUser", userSchema);
@@ -178,8 +188,12 @@ function getModels() {
 
 // ---------- HELPERS ----------
 function requireAdmin(req, res, next) {
-  if (!ADMIN_API_KEY) return next(); // dev only
   const key = (req.header("x-admin-key") || "").trim();
+
+  if (!ADMIN_API_KEY) {
+    return res.status(401).json({ error: "Admin not configured on server (missing ADMIN_API_KEY)" });
+  }
+
   if (!key || key !== ADMIN_API_KEY) return res.status(401).json({ error: "Unauthorized (admin key)" });
   next();
 }
@@ -190,7 +204,7 @@ function authMiddleware(req, res, next) {
   if (!token) return res.status(401).json({ error: "Missing token" });
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
+    req.user = decoded; // { userId, email }
     next();
   } catch (e) {
     return res.status(401).json({ error: "Invalid token" });
@@ -198,7 +212,7 @@ function authMiddleware(req, res, next) {
 }
 
 function calcTotal(items = []) {
-  return items.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.qty) || 1), 0);
+  return (items || []).reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.qty) || 1), 0);
 }
 
 // ---------- EMAIL (optional) ----------
@@ -242,7 +256,7 @@ app.get("/api/health", requireDb, (req, res) => {
   });
 });
 
-// ---- ADMIN VERIFY ----
+// ---- ADMIN VERIFY (frontend uses this to unlock admin) ----
 app.get("/api/admin/verify", requireDb, requireAdmin, (req, res) => res.json({ ok: true }));
 
 // ---- COFFEE ----
@@ -260,7 +274,9 @@ app.post("/api/coffee", requireDb, requireAdmin, async (req, res) => {
   try {
     const { Coffee } = getModels();
     const { name, description = "", category = "coffee", price, image = "" } = req.body || {};
-    if (!name || price === undefined) return res.status(400).json({ error: "name and price are required" });
+
+    if (!name || price === undefined || price === null)
+      return res.status(400).json({ error: "name and price are required" });
 
     const created = await Coffee.create({
       name: String(name).trim(),
@@ -280,7 +296,9 @@ app.put("/api/coffee/:id", requireDb, requireAdmin, async (req, res) => {
   try {
     const { Coffee } = getModels();
     const { name, description = "", category = "coffee", price, image } = req.body || {};
-    if (!name || price === undefined) return res.status(400).json({ error: "name and price are required" });
+
+    if (!name || price === undefined || price === null)
+      return res.status(400).json({ error: "name and price are required" });
 
     const update = {
       name: String(name).trim(),
@@ -314,8 +332,11 @@ app.post("/api/auth/register", requireDb, async (req, res) => {
   try {
     const { User } = getModels();
     const { fullName, email, password } = req.body || {};
-    if (!fullName || !email || !password) return res.status(400).json({ error: "fullName, email, password required" });
-    if (String(password).length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
+
+    if (!fullName || !email || !password)
+      return res.status(400).json({ error: "fullName, email, password required" });
+    if (String(password).length < 6)
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
 
     const emailNorm = String(email).toLowerCase().trim();
     const exists = await User.findOne({ email: emailNorm }).lean();
@@ -329,8 +350,10 @@ app.post("/api/auth/register", requireDb, async (req, res) => {
     });
 
     const token = jwt.sign({ userId: String(user._id), email: user.email }, JWT_SECRET, { expiresIn: "30d" });
+
     res.json({ token, user: { fullName: user.fullName, email: user.email } });
   } catch (err) {
+    if (String(err?.code) === "11000") return res.status(400).json({ error: "Email already registered" });
     res.status(500).json({ error: "Register failed", details: err?.message || String(err) });
   }
 });
@@ -339,6 +362,7 @@ app.post("/api/auth/login", requireDb, async (req, res) => {
   try {
     const { User } = getModels();
     const { email, password } = req.body || {};
+
     if (!email || !password) return res.status(400).json({ error: "email and password required" });
 
     const emailNorm = String(email).toLowerCase().trim();
@@ -349,6 +373,7 @@ app.post("/api/auth/login", requireDb, async (req, res) => {
     if (!ok) return res.status(400).json({ error: "Invalid email or password" });
 
     const token = jwt.sign({ userId: String(user._id), email: user.email }, JWT_SECRET, { expiresIn: "30d" });
+
     res.json({ token, user: { fullName: user.fullName, email: user.email } });
   } catch (err) {
     res.status(500).json({ error: "Login failed", details: err?.message || String(err) });
